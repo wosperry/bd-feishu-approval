@@ -1,3 +1,4 @@
+using BD.FeishuApproval.Shared.Dtos.Definitions;
 using BD.FeishuApproval.Shared.Dtos.Instances;
 using BD.FeishuApproval.Shared.Models;
 using System.Threading.Tasks;
@@ -9,12 +10,7 @@ namespace BD.FeishuApproval.Abstractions.Instances;
 /// </summary>
 public interface IFeishuApprovalInstanceService
 {
-    /// <summary>
-    /// 创建审批实例（发起审批）
-    /// </summary>
-    /// <param name="request">实例创建请求</param>
-    /// <returns>创建结果（含instance_code）</returns>
-    Task<FeishuResponse<CreateInstanceResult>> CreateInstanceAsync(CreateInstanceRequest request);
+    Task<FeishuResponse<CreateInstanceResult>> CallFeishuCreateInstanceApiAsync(FeishuCreateApprovalBody requestBody);
 
     /// <summary>
     /// 查询审批实例详情

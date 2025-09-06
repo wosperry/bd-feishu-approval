@@ -28,33 +28,33 @@ public class ApprovalHandlerRegistry : IApprovalHandlerRegistry
     /// <summary>
     /// 注册审批处理器类型
     /// </summary>
-    public void RegisterHandler<THandler>(string approvalType) where THandler : class, IApprovalHandler
+    public void RegisterHandler<THandler>(string approvalCode) where THandler : class, IApprovalHandler
     {
-        RegisterHandler(typeof(THandler), approvalType);
+        RegisterHandler(typeof(THandler), approvalCode);
     }
 
     /// <summary>
     /// 注册审批处理器类型
     /// </summary>
-    public void RegisterHandler(Type handlerType, string approvalType)
+    public void RegisterHandler(Type handlerType, string approvalCode)
     {
         if (!typeof(IApprovalHandler).IsAssignableFrom(handlerType))
         {
             throw new ArgumentException($"处理器类型 {handlerType.Name} 必须实现 IApprovalHandler 接口");
         }
 
-        _handlerTypes.TryAdd(approvalType, handlerType);
-        _logger.LogInformation("注册审批处理器: {ApprovalType} -> {HandlerType}", approvalType, handlerType.Name);
+        _handlerTypes.TryAdd(approvalCode, handlerType);
+        _logger.LogInformation("注册审批处理器: {ApprovalCode} -> {HandlerType}", approvalCode, handlerType.Name);
     }
 
     /// <summary>
     /// 获取审批处理器实例
     /// </summary>
-    public IApprovalHandler? GetHandler(string approvalType, IServiceProvider? serviceProvider = null)
+    public IApprovalHandler? GetHandler(string approvalCode, IServiceProvider? serviceProvider = null)
     {
-        if (!_handlerTypes.TryGetValue(approvalType, out var handlerType))
+        if (!_handlerTypes.TryGetValue(approvalCode, out var handlerType))
         {
-            _logger.LogWarning("未找到审批类型 {ApprovalType} 的处理器", approvalType);
+            _logger.LogWarning("未找到审批类型 {ApprovalType} 的处理器", approvalCode);
             return null;
         }
 
@@ -76,8 +76,8 @@ public class ApprovalHandlerRegistry : IApprovalHandlerRegistry
     /// </summary>
     public IApprovalHandler<T>? GetHandler<T>(IServiceProvider? serviceProvider = null) where T : class, BD.FeishuApproval.Shared.Abstractions.IFeishuApprovalRequest, new()
     {
-        var approvalType = new T().GetApprovalType();
-        var handler = GetHandler(approvalType, serviceProvider);
+        var approvalCode = new T().GetApprovalCode();
+        var handler = GetHandler(approvalCode, serviceProvider);
         return handler as IApprovalHandler<T>;
     }
 
@@ -92,9 +92,9 @@ public class ApprovalHandlerRegistry : IApprovalHandlerRegistry
     /// <summary>
     /// 检查是否已注册指定的审批类型
     /// </summary>
-    public bool IsRegistered(string approvalType)
+    public bool IsRegistered(string approvalCode)
     {
-        return _handlerTypes.ContainsKey(approvalType);
+        return _handlerTypes.ContainsKey(approvalCode);
     }
 }
 
@@ -106,17 +106,17 @@ public interface IApprovalHandlerRegistry
     /// <summary>
     /// 注册审批处理器类型
     /// </summary>
-    void RegisterHandler<THandler>(string approvalType) where THandler : class, IApprovalHandler;
+    void RegisterHandler<THandler>(string approvalCode) where THandler : class, IApprovalHandler;
 
     /// <summary>
     /// 注册审批处理器类型
     /// </summary>
-    void RegisterHandler(Type handlerType, string approvalType);
+    void RegisterHandler(Type handlerType, string approvalCode);
 
     /// <summary>
     /// 获取审批处理器实例
     /// </summary>
-    IApprovalHandler? GetHandler(string approvalType, IServiceProvider? serviceProvider = null);
+    IApprovalHandler? GetHandler(string approvalCode, IServiceProvider? serviceProvider = null);
 
     /// <summary>
     /// 获取泛型审批处理器实例
@@ -131,5 +131,5 @@ public interface IApprovalHandlerRegistry
     /// <summary>
     /// 检查是否已注册指定的审批类型
     /// </summary>
-    bool IsRegistered(string approvalType);
+    bool IsRegistered(string approvalCode);
 }

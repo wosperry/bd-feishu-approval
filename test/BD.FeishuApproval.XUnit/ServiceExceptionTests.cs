@@ -4,11 +4,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BD.FeishuApproval.Abstractions.Http;
+using BD.FeishuApproval.Abstractions.Persistence;
 using BD.FeishuApproval.Definitions;
 using BD.FeishuApproval.Instances;
+using BD.FeishuApproval.Services;
 using BD.FeishuApproval.Shared.Dtos.Definitions;
 using BD.FeishuApproval.Shared.Dtos.Instances;
 using BD.FeishuApproval.Shared.Models;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace BD.FeishuApproval.XUnit;
@@ -42,7 +45,10 @@ public class ServiceExceptionTests
     [Fact]
     public async Task InstanceService_OnBizError_ThrowsFeishuApiException()
     {
-        var svc = new FeishuApprovalInstanceService(new StubClient());
+        var mockRepository = new Mock<IFeishuApprovalRepository>();
+        var mockUserService = new Mock<IFeishuUserService>();
+        var mockLogger = new Mock<ILogger<FeishuApprovalInstanceService>>();
+        var svc = new FeishuApprovalInstanceService(new StubClient(), mockRepository.Object, mockUserService.Object, mockLogger.Object);
         await Assert.ThrowsAsync<FeishuApiException>(async () =>
         {
             _ = await svc.CreateInstanceAsync(new CreateInstanceRequest());

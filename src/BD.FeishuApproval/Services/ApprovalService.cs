@@ -1,3 +1,4 @@
+using BD.FeishuApproval.Abstractions.Definitions;
 using BD.FeishuApproval.Abstractions.Instances;
 using BD.FeishuApproval.Abstractions.Services;
 using BD.FeishuApproval.Extensions;
@@ -22,39 +23,46 @@ public class ApprovalService : IApprovalService
 {
     private readonly IApprovalHandlerRegistry _handlerRegistry;
     private readonly IFeishuApprovalInstanceService _instanceService;
+    private readonly IFeishuApprovalDefinitionService _definitionService;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IFeishuUserService _userService;
     private readonly ILogger<ApprovalService> _logger;
 
     public ApprovalService(
         IApprovalHandlerRegistry handlerRegistry,
         IFeishuApprovalInstanceService instanceService,
         IServiceProvider serviceProvider,
-        ILogger<ApprovalService> logger)
+        ILogger<ApprovalService> logger,
+        IFeishuUserService userService,
+        IFeishuApprovalDefinitionService definitionService)
     {
         _handlerRegistry = handlerRegistry;
         _instanceService = instanceService;
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _userService = userService;
+        _definitionService = definitionService;
     }
 
     /// <summary>
     /// 创建审批实例
     /// 正确的职责划分：ApprovalService负责创建，Handler提供校验和生命周期钩子
     /// </summary>
-    public async Task<CreateInstanceResult> CreateApprovalAsync<T>(T request) 
+    public async Task<CreateInstanceResult> CreateApprovalAsync<T, TId>(T request, TId userId) 
         where T : class, IFeishuApprovalRequest, new()
+        where TId : struct
     {
         if (request == null)
             throw new ArgumentNullException(nameof(request));
 
-        var approvalType = request.GetApprovalType();
-        _logger.LogInformation("开始创建审批 - 类型: {ApprovalType}", approvalType);
+        var approvalCode = request.GetApprovalCode();
+        _logger.LogInformation("开始创建审批 - 类型: {ApprovalCode}", approvalCode);
 
         // 通过Registry获取对应的Handler（用于校验和生命周期钩子）
         var handler = _handlerRegistry.GetHandler<T>(_serviceProvider);
         if (handler == null)
         {
-            var errorMsg = $"未找到审批类型 '{approvalType}' 对应的处理器，请确保已注册相应的Handler";
+            var errorMsg = $"未找到审批类型 '{approvalCode}' 对应的处理器，请确保已注册相应的Handler";
             _logger.LogError(errorMsg);
             throw new InvalidOperationException(errorMsg);
         }
@@ -68,8 +76,21 @@ public class ApprovalService : IApprovalService
             await handler.PreProcessAsync(request);
 
             // 3. ApprovalService负责实际的API调用
-            _logger.LogDebug("调用飞书API创建审批实例 - 类型: {ApprovalType}", approvalType);
-            var result = await _instanceService.CreateTypedInstanceAsync(request);
+            _logger.LogDebug("调用飞书API创建审批实例 - 类型: {ApprovalCode}", approvalCode);
+
+            var userOpenId = await _userService.GetUserOpenIdAsync(userId.ToString(), "user_id");
+            var feishuRequestBody = await _definitionService.CreateFeishuApprovalRequestBody(userOpenId, request);
+
+
+            var result = await _instanceService.CallFeishuCreateInstanceApiAsync(feishuRequestBody);
+            /*
+        // 调用原始的创建方法
+        return await instanceService.CreateInstanceAsync(new CreateInstanceRequest
+        {
+            ApprovalCode = approvalCode,
+            FormData = formData,
+            ApplicantUserId = userId.ToString()
+        });*/
 
             if (!result.IsSuccess || result.Data == null)
             {
@@ -79,14 +100,14 @@ public class ApprovalService : IApprovalService
             // 4. 委托给Handler进行后处理
             await handler.PostProcessAsync(request, result.Data);
 
-            _logger.LogInformation("审批创建成功 - 类型: {ApprovalType}, 实例ID: {InstanceCode}", 
-                approvalType, result.Data.InstanceCode);
+            _logger.LogInformation("审批创建成功 - 类型: {ApprovalCode}, 实例ID: {InstanceCode}", 
+                approvalCode, result.Data.InstanceCode);
             
             return result.Data;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "创建审批失败 - 类型: {ApprovalType}", approvalType);
+            _logger.LogError(ex, "创建审批失败 - 类型: {ApprovalCode}", approvalCode);
             
             // 委托给Handler处理创建失败
             try
@@ -112,36 +133,36 @@ public class ApprovalService : IApprovalService
 
         // 这里需要根据callbackEvent解析出审批类型
         // 可能需要从InstanceCode、ApprovalCode或其他字段推断
-        var approvalType = ExtractApprovalTypeFromCallback(callbackEvent);
+        var ApprovalCode = ExtractApprovalCodeFromCallback(callbackEvent);
         
-        if (string.IsNullOrEmpty(approvalType))
+        if (string.IsNullOrEmpty(ApprovalCode))
         {
             _logger.LogWarning("无法从回调事件中解析审批类型 - 实例: {InstanceCode}", callbackEvent.InstanceCode);
             throw new InvalidOperationException("无法确定审批类型，回调事件缺少必要信息");
         }
 
-        await HandleApprovalCallbackAsync(approvalType, callbackEvent);
+        await HandleApprovalCallbackAsync(ApprovalCode, callbackEvent);
     }
 
     /// <summary>
     /// 根据审批类型处理回调事件
     /// </summary>
-    public async Task HandleApprovalCallbackAsync(string approvalType, FeishuCallbackEvent callbackEvent)
+    public async Task HandleApprovalCallbackAsync(string ApprovalCode, FeishuCallbackEvent callbackEvent)
     {
-        if (string.IsNullOrEmpty(approvalType))
-            throw new ArgumentException("审批类型不能为空", nameof(approvalType));
+        if (string.IsNullOrEmpty(ApprovalCode))
+            throw new ArgumentException("审批类型不能为空", nameof(ApprovalCode));
         
         if (callbackEvent == null)
             throw new ArgumentNullException(nameof(callbackEvent));
 
-        _logger.LogInformation("开始处理审批回调 - 类型: {ApprovalType}, 实例: {InstanceCode}, 状态: {Status}", 
-            approvalType, callbackEvent.InstanceCode, callbackEvent.Type);
+        _logger.LogInformation("开始处理审批回调 - 类型: {ApprovalCode}, 实例: {InstanceCode}, 状态: {Status}", 
+            ApprovalCode, callbackEvent.InstanceCode, callbackEvent.Type);
 
         // 通过Registry获取对应的Handler
-        var handler = _handlerRegistry.GetHandler(approvalType, _serviceProvider);
+        var handler = _handlerRegistry.GetHandler(ApprovalCode, _serviceProvider);
         if (handler == null)
         {
-            var errorMsg = $"未找到审批类型 '{approvalType}' 对应的处理器";
+            var errorMsg = $"未找到审批类型 '{ApprovalCode}' 对应的处理器";
             _logger.LogError(errorMsg);
             throw new InvalidOperationException(errorMsg);
         }
@@ -151,13 +172,13 @@ public class ApprovalService : IApprovalService
             // 委托给Handler处理回调
             await handler.HandleCallbackAsync(callbackEvent);
             
-            _logger.LogInformation("审批回调处理完成 - 类型: {ApprovalType}, 实例: {InstanceCode}", 
-                approvalType, callbackEvent.InstanceCode);
+            _logger.LogInformation("审批回调处理完成 - 类型: {ApprovalCode}, 实例: {InstanceCode}", 
+                ApprovalCode, callbackEvent.InstanceCode);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理审批回调失败 - 类型: {ApprovalType}, 实例: {InstanceCode}", 
-                approvalType, callbackEvent.InstanceCode);
+            _logger.LogError(ex, "处理审批回调失败 - 类型: {ApprovalCode}, 实例: {InstanceCode}", 
+                ApprovalCode, callbackEvent.InstanceCode);
             throw;
         }
     }
@@ -165,27 +186,27 @@ public class ApprovalService : IApprovalService
     /// <summary>
     /// 检查指定审批类型是否已注册Handler
     /// </summary>
-    public bool IsApprovalTypeSupported(string approvalType)
+    public bool IsApprovalCodeSupported(string ApprovalCode)
     {
-        if (string.IsNullOrEmpty(approvalType))
+        if (string.IsNullOrEmpty(ApprovalCode))
             return false;
         
-        return _handlerRegistry.IsRegistered(approvalType);
+        return _handlerRegistry.IsRegistered(ApprovalCode);
     }
 
     /// <summary>
     /// 检查指定审批请求类型是否已注册Handler
     /// </summary>
-    public bool IsApprovalTypeSupported<T>() where T : class, IFeishuApprovalRequest, new()
+    public bool IsApprovalCodeSupported<T>() where T : class, IFeishuApprovalRequest, new()
     {
-        var approvalType = new T().GetApprovalType();
-        return IsApprovalTypeSupported(approvalType);
+        var ApprovalCode = new T().GetApprovalCode();
+        return IsApprovalCodeSupported(ApprovalCode);
     }
 
     /// <summary>
     /// 获取所有支持的审批类型
     /// </summary>
-    public string[] GetSupportedApprovalTypes()
+    public string[] GetSupportedApprovalCodes()
     {
         return _handlerRegistry.GetRegisteredApprovalTypes().ToArray();
     }
@@ -194,7 +215,7 @@ public class ApprovalService : IApprovalService
     /// 从回调事件中提取审批类型
     /// 这是一个策略方法，可能需要根据实际情况调整实现逻辑
     /// </summary>
-    private string ExtractApprovalTypeFromCallback(FeishuCallbackEvent callbackEvent)
+    private string ExtractApprovalCodeFromCallback(FeishuCallbackEvent callbackEvent)
     {
         // 策略1: 尝试从ApprovalCode直接获取（如果回调事件包含这个字段）
         if (!string.IsNullOrEmpty(callbackEvent.ApprovalCode))
@@ -209,7 +230,7 @@ public class ApprovalService : IApprovalService
             {
                 // 这里可能需要解析JSON来获取审批类型信息
                 // 具体实现依赖于飞书回调的数据结构
-                // 例如：从Form中的某个字段推断，或者维护InstanceCode到ApprovalType的映射表
+                // 例如：从Form中的某个字段推断，或者维护InstanceCode到ApprovalCode的映射表
             }
             catch (Exception ex)
             {
@@ -219,7 +240,7 @@ public class ApprovalService : IApprovalService
 
         // 策略3: 通过数据库查询InstanceCode对应的审批类型
         // 这里需要注入相应的Repository来查询
-        // 例如：await _repository.GetApprovalTypeByInstanceCodeAsync(callbackEvent.InstanceCode);
+        // 例如：await _repository.GetApprovalCodeByInstanceCodeAsync(callbackEvent.InstanceCode);
 
         return null; // 无法确定审批类型
     }

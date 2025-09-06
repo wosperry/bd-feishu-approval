@@ -81,6 +81,9 @@ public static class ServiceCollectionExtensions
             services.AddApprovalHandlersFromAssembly(entryAssembly);
         }
 
+        // 用户服务
+        services.AddScoped<BD.FeishuApproval.Services.IFeishuUserService, BD.FeishuApproval.Services.FeishuUserService>();
+
         // 审批实例服务
         services.AddScoped<IFeishuApprovalInstanceService, FeishuApprovalInstanceService>();
 

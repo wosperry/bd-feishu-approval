@@ -12,7 +12,7 @@ namespace BD.FeishuApproval.Abstractions.Handlers;
 /// </summary>
 public interface IApprovalHandler<TApprovalDto> where TApprovalDto : class, IFeishuApprovalRequest, new()
 {
-    string ApprovalType { get; }
+    string ApprovalCode { get; }
 
     /// <summary>验证审批请求（供外部调用）</summary>
     Task ValidateAsync(TApprovalDto request);
@@ -47,7 +47,7 @@ public interface IApprovalHandler<TApprovalDto> where TApprovalDto : class, IFei
 /// </summary>
 public interface IApprovalHandler
 {
-    string ApprovalType { get; }
+    string ApprovalCode { get; }
     Task HandleCallbackAsync(FeishuCallbackEvent callbackEvent);
 }
 

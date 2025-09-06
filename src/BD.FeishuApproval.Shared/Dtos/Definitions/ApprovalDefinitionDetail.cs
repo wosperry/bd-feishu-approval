@@ -52,6 +52,31 @@ public class ApprovalDefinitionDetail
 }
 
 /// <summary>
+/// 发起审批用的Body
+/// </summary>
+public class FeishuCreateApprovalBody
+{
+
+    /// <summary>
+    /// 审批代码
+    /// </summary>
+    [JsonPropertyName("approval_code")]
+    public string ApprovalCode { get; set; }
+
+    /// <summary>
+    /// 表单结构（JSON字符串）
+    /// </summary>
+    [JsonPropertyName("form")]
+    public string Form { get; set; }
+
+    /// <summary>
+    /// 飞书用户ID
+    /// </summary>
+    [JsonPropertyName("open_id")]
+    public string OpenId { get; set; }
+}
+
+/// <summary>
 /// 审批节点信息
 /// </summary>
 public class ApprovalNode

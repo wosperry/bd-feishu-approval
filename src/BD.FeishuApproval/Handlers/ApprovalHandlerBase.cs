@@ -28,7 +28,7 @@ public abstract class ApprovalHandlerBase<TApprovalDto> : IApprovalHandler<TAppr
         _logger = logger;
     }
 
-    public virtual string ApprovalType => new TApprovalDto().GetApprovalType();
+    public virtual string ApprovalCode => new TApprovalDto().GetApprovalCode();
 
     /// <summary>
     /// 验证审批请求（供外部调用，如Controller或Service）

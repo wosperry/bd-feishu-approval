@@ -162,6 +162,67 @@ public interface IFeishuApprovalRepository
     Task<IEnumerable<FeishuManageLog>> QueryManageLogsAsync(int page, int pageSize, CancellationToken cancellationToken = default);
     Task<FeishuUser> GetUserAsync(int userId);
     Task UpdateUserOpenIdAsync(int id, string openId);
+
+    // OpenId缓存管理
+    /// <summary>
+    /// 通过手机号获取缓存的OpenId
+    /// </summary>
+    Task<string> GetOpenIdByMobileAsync(string mobile);
+    
+    /// <summary>
+    /// 通过邮箱获取缓存的OpenId
+    /// </summary>
+    Task<string> GetOpenIdByEmailAsync(string email);
+    
+    /// <summary>
+    /// 通过UnionId获取缓存的OpenId
+    /// </summary>
+    Task<string> GetOpenIdByUnionIdAsync(string unionId);
+    
+    /// <summary>
+    /// 通过UserId获取缓存的OpenId
+    /// </summary>
+    Task<string> GetOpenIdByUserIdAsync(string userId);
+
+    /// <summary>
+    /// 缓存OpenId（通过手机号）
+    /// </summary>
+    Task CacheOpenIdByMobileAsync(string mobile, string openId);
+    
+    /// <summary>
+    /// 缓存OpenId（通过邮箱）
+    /// </summary>
+    Task CacheOpenIdByEmailAsync(string email, string openId);
+    
+    /// <summary>
+    /// 缓存OpenId（通过UnionId）
+    /// </summary>
+    Task CacheOpenIdByUnionIdAsync(string unionId, string openId);
+    
+    /// <summary>
+    /// 缓存OpenId（通过UserId）
+    /// </summary>
+    Task CacheOpenIdByUserIdAsync(string userId, string openId);
+
+    /// <summary>
+    /// 清除OpenId缓存（通过手机号）
+    /// </summary>
+    Task ClearOpenIdCacheByMobileAsync(string mobile);
+    
+    /// <summary>
+    /// 清除OpenId缓存（通过邮箱）
+    /// </summary>
+    Task ClearOpenIdCacheByEmailAsync(string email);
+    
+    /// <summary>
+    /// 清除OpenId缓存（通过UnionId）
+    /// </summary>
+    Task ClearOpenIdCacheByUnionIdAsync(string unionId);
+    
+    /// <summary>
+    /// 清除OpenId缓存（通过UserId）
+    /// </summary>
+    Task ClearOpenIdCacheByUserIdAsync(string userId);
 }
 
 

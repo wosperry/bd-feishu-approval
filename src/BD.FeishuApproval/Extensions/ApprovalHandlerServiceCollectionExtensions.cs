@@ -44,14 +44,14 @@ public static class ApprovalHandlerServiceCollectionExtensions
             services.AddTransient(handlerType);
 
             // 获取审批类型
-            var approvalType = GetApprovalTypeFromHandler(handlerType);
-            if (!string.IsNullOrEmpty(approvalType))
+            var approvalCode = GetApprovalCodeFromHandler(handlerType);
+            if (!string.IsNullOrEmpty(approvalCode))
             {
                 // 在服务提供程序构建后注册到注册表
                 services.AddSingleton(provider =>
                 {
                     var registry = provider.GetRequiredService<IApprovalHandlerRegistry>();
-                    registry.RegisterHandler(handlerType, approvalType);
+                    registry.RegisterHandler(handlerType, approvalCode);
                     return registry;
                 });
             }
@@ -106,13 +106,13 @@ public static class ApprovalHandlerServiceCollectionExtensions
     /// <summary>
     /// 从处理器类型获取审批类型
     /// </summary>
-    private static string GetApprovalTypeFromHandler(Type handlerType)
+    private static string GetApprovalCodeFromHandler(Type handlerType)
     {
-        // 尝试从ApprovalType属性获取
-        var approvalTypeAttribute = handlerType.GetCustomAttribute<ApprovalTypeAttribute>();
-        if (approvalTypeAttribute != null)
+        // 尝试从ApprovalCode属性获取
+        var approvalCodeAttribute = handlerType.GetCustomAttribute<ApprovalCodeAttribute>();
+        if (approvalCodeAttribute != null)
         {
-            return approvalTypeAttribute.Type;
+            return approvalCodeAttribute.Type;
         }
 
         // 尝试从泛型参数获取
@@ -126,7 +126,7 @@ public static class ApprovalHandlerServiceCollectionExtensions
             try
             {
                 var dtoInstance = Activator.CreateInstance(dtoType) as IFeishuApprovalRequest;
-                return dtoInstance?.GetApprovalType() ?? string.Empty;
+                return dtoInstance?.GetApprovalCode() ?? string.Empty;
             }
             catch
             {
@@ -134,12 +134,12 @@ public static class ApprovalHandlerServiceCollectionExtensions
             }
         }
 
-        // 尝试创建实例并获取ApprovalType属性
+        // 尝试创建实例并获取ApprovalCode属性
         try
         {
             if (Activator.CreateInstance(handlerType) is IApprovalHandler handler)
             {
-                return handler.ApprovalType;
+                return handler.ApprovalCode;
             }
         }
         catch
@@ -169,9 +169,9 @@ internal class HandlerRegistrationHostedService<THandler, TApprovalDto> : IHoste
     {
         using var scope = _serviceProvider.CreateScope();
         var registry = scope.ServiceProvider.GetRequiredService<IApprovalHandlerRegistry>();
-        var approvalType = new TApprovalDto().GetApprovalType();
+        var approvalCode = new TApprovalDto().GetApprovalCode();
         
-        registry.RegisterHandler(typeof(THandler), approvalType);
+        registry.RegisterHandler(typeof(THandler), approvalCode);
         
         await Task.CompletedTask;
     }

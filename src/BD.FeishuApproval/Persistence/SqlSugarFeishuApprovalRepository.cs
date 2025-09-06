@@ -32,7 +32,8 @@ public class SqlSugarFeishuApprovalRepository : IFeishuApprovalRepository
             (Type: typeof(FeishuAdminAccessKey), TableName: "FeishuAdminAccessKey"),
             (Type: typeof(FeishuApprovalRegistration), TableName: "FeishuApprovalRegistration"),
             (Type: typeof(FeishuManageLog), TableName: "FeishuManageLog"),
-            (Type: typeof(FeishuUser), TableName: "FeishuUser")
+            (Type: typeof(FeishuUser), TableName: "FeishuUser"),
+            (Type: typeof(FeishuOpenIdCache), TableName: "FeishuOpenIdCache")
         };
 
         var codeFirst = _db.CodeFirst.SetStringDefaultLength(4000);
@@ -345,6 +346,108 @@ public class SqlSugarFeishuApprovalRepository : IFeishuApprovalRepository
             .SetColumns(j => new FeishuUser { FeishuOpenId = openId })
             .Where(j => j.Id == id)
             .ExecuteCommandAsync();
+    }
+
+    // OpenId缓存管理方法实现
+    public async Task<string> GetOpenIdByMobileAsync(string mobile)
+    {
+        var cache = await _db.Queryable<FeishuOpenIdCache>()
+            .FirstAsync(x => x.UserIdType == "mobile" && x.UserIdValue == mobile);
+        return cache?.OpenId ?? string.Empty;
+    }
+
+    public async Task<string> GetOpenIdByEmailAsync(string email)
+    {
+        var cache = await _db.Queryable<FeishuOpenIdCache>()
+            .FirstAsync(x => x.UserIdType == "email" && x.UserIdValue == email);
+        return cache?.OpenId ?? string.Empty;
+    }
+
+    public async Task<string> GetOpenIdByUnionIdAsync(string unionId)
+    {
+        var cache = await _db.Queryable<FeishuOpenIdCache>()
+            .FirstAsync(x => x.UserIdType == "union_id" && x.UserIdValue == unionId);
+        return cache?.OpenId ?? string.Empty;
+    }
+
+    public async Task<string> GetOpenIdByUserIdAsync(string userId)
+    {
+        var cache = await _db.Queryable<FeishuOpenIdCache>()
+            .FirstAsync(x => x.UserIdType == "user_id" && x.UserIdValue == userId);
+        return cache?.OpenId ?? string.Empty;
+    }
+
+    public async Task CacheOpenIdByMobileAsync(string mobile, string openId)
+    {
+        await UpsertOpenIdCacheAsync("mobile", mobile, openId);
+    }
+
+    public async Task CacheOpenIdByEmailAsync(string email, string openId)
+    {
+        await UpsertOpenIdCacheAsync("email", email, openId);
+    }
+
+    public async Task CacheOpenIdByUnionIdAsync(string unionId, string openId)
+    {
+        await UpsertOpenIdCacheAsync("union_id", unionId, openId);
+    }
+
+    public async Task CacheOpenIdByUserIdAsync(string userId, string openId)
+    {
+        await UpsertOpenIdCacheAsync("user_id", userId, openId);
+    }
+
+    public async Task ClearOpenIdCacheByMobileAsync(string mobile)
+    {
+        await _db.Deleteable<FeishuOpenIdCache>()
+            .Where(x => x.UserIdType == "mobile" && x.UserIdValue == mobile)
+            .ExecuteCommandAsync();
+    }
+
+    public async Task ClearOpenIdCacheByEmailAsync(string email)
+    {
+        await _db.Deleteable<FeishuOpenIdCache>()
+            .Where(x => x.UserIdType == "email" && x.UserIdValue == email)
+            .ExecuteCommandAsync();
+    }
+
+    public async Task ClearOpenIdCacheByUnionIdAsync(string unionId)
+    {
+        await _db.Deleteable<FeishuOpenIdCache>()
+            .Where(x => x.UserIdType == "union_id" && x.UserIdValue == unionId)
+            .ExecuteCommandAsync();
+    }
+
+    public async Task ClearOpenIdCacheByUserIdAsync(string userId)
+    {
+        await _db.Deleteable<FeishuOpenIdCache>()
+            .Where(x => x.UserIdType == "user_id" && x.UserIdValue == userId)
+            .ExecuteCommandAsync();
+    }
+
+    private async Task UpsertOpenIdCacheAsync(string userIdType, string userIdValue, string openId)
+    {
+        var existing = await _db.Queryable<FeishuOpenIdCache>()
+            .FirstAsync(x => x.UserIdType == userIdType && x.UserIdValue == userIdValue);
+
+        if (existing != null)
+        {
+            existing.OpenId = openId;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await _db.Updateable(existing).ExecuteCommandAsync();
+        }
+        else
+        {
+            var newCache = new FeishuOpenIdCache
+            {
+                UserIdType = userIdType,
+                UserIdValue = userIdValue,
+                OpenId = openId,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _db.Insertable(newCache).ExecuteCommandAsync();
+        }
     }
 }
 

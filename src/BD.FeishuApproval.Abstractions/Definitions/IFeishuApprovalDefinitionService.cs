@@ -1,3 +1,4 @@
+using BD.FeishuApproval.Shared.Abstractions;
 using BD.FeishuApproval.Shared.Dtos.Definitions;
 using BD.FeishuApproval.Shared.Models;
 using System.Threading.Tasks;
@@ -51,4 +52,5 @@ public interface IFeishuApprovalDefinitionService
     /// <param name="approvalCode">审批定义标识</param>
     /// <returns>审批定义详情（含订阅状态）</returns>
     Task<FeishuResponse<ApprovalDefinitionDetail>> GetApprovalSubscriptionStatusAsync(string approvalCode);
+    Task<FeishuCreateApprovalBody> CreateFeishuApprovalRequestBody<T>(string userOpenId, T request) where T : class, IFeishuApprovalRequest, new();
 }

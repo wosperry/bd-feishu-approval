@@ -286,7 +286,7 @@ public class FeishuManagementController : ControllerBase
     #endregion
 
     #region 飞书URL验证/事件接收接口（POST请求）
-    private class EncryptedRequest
+    public class EncryptedRequest
     {
         public string Encrypt { get; set; }
     }
@@ -295,9 +295,8 @@ public class FeishuManagementController : ControllerBase
     /// 处理URL验证和事件推送
     /// </summary>
     [HttpPost("health")]
-    public async Task<IActionResult> FeishuEventCallback()
+    public async Task<IActionResult> FeishuEventCallback(EncryptedRequest data)
     {
-        // TODO: 分发到事件的处理器（好像还有一个
         try
         {
             // 读取原始请求体
@@ -309,16 +308,9 @@ public class FeishuManagementController : ControllerBase
             }
 
             var config = await _managementService.GetConfigurationStatusAsync(false);
-
-            // 解析请求体获取加密字符串
-            var requestData = JsonConvert.DeserializeObject<EncryptedRequest>(requestBody);
-            if (string.IsNullOrEmpty(requestData.Encrypt))
-            {
-                return BadRequest("缺少encrypt字段");
-            }
-
+ 
             // 解密数据
-            string decryptedData = _managementService.DecryptFeishuData(requestData.Encrypt, config.FeishuConfig.EncryptKey);
+            string decryptedData = _managementService.DecryptFeishuData(data.Encrypt, config.FeishuConfig.EncryptKey);
             if (string.IsNullOrEmpty(decryptedData))
             {
                 return BadRequest("解密失败");

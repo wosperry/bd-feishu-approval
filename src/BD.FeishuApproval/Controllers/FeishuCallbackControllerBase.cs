@@ -129,13 +129,49 @@ public abstract class FeishuCallbackControllerBase : ControllerBase
     {
         try
         {
+            if (callbackData == null)
+            {
+                _logger.LogWarning("回调数据为空");
+                return null;
+            }
+
             var callbackJson = JsonSerializer.Serialize(callbackData);
+            _logger.LogDebug("解析回调数据: {CallbackJson}", callbackJson);
+            
             var callbackEvent = JsonSerializer.Deserialize<FeishuCallbackEvent>(callbackJson);
+            
+            if (callbackEvent == null)
+            {
+                _logger.LogWarning("反序列化回调数据失败，结果为null");
+                return null;
+            }
+
+            // 验证必要字段
+            if (string.IsNullOrEmpty(callbackEvent.InstanceCode))
+            {
+                _logger.LogWarning("回调数据缺少实例代码");
+                return null;
+            }
+
+            if (string.IsNullOrEmpty(callbackEvent.EventId))
+            {
+                _logger.LogWarning("回调数据缺少事件ID");
+                return null;
+            }
+
+            _logger.LogInformation("成功解析回调数据 - 实例: {InstanceCode}, 事件ID: {EventId}, 类型: {Type}", 
+                callbackEvent.InstanceCode, callbackEvent.EventId, callbackEvent.Type);
+
             return await Task.FromResult(callbackEvent);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "JSON解析回调数据失败: {CallbackData}", callbackData);
+            return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "解析回调数据失败");
+            _logger.LogError(ex, "解析回调数据失败: {CallbackData}", callbackData);
             return null;
         }
     }
@@ -145,9 +181,47 @@ public abstract class FeishuCallbackControllerBase : ControllerBase
     /// </summary>
     protected virtual async Task<ValidationResult> ValidateCallback(FeishuCallbackEvent callbackEvent)
     {
+        if (callbackEvent == null)
+        {
+            return new ValidationResult { IsValid = false, ErrorMessage = "回调事件数据为空" };
+        }
+
         if (string.IsNullOrEmpty(callbackEvent.InstanceCode))
         {
             return new ValidationResult { IsValid = false, ErrorMessage = "回调数据缺少实例代码" };
+        }
+
+        if (string.IsNullOrEmpty(callbackEvent.EventId))
+        {
+            return new ValidationResult { IsValid = false, ErrorMessage = "回调数据缺少事件ID" };
+        }
+
+        if (string.IsNullOrEmpty(callbackEvent.EventType))
+        {
+            return new ValidationResult { IsValid = false, ErrorMessage = "回调数据缺少事件类型" };
+        }
+
+        // 验证事件类型是否为审批相关事件
+        if (!callbackEvent.EventType.Contains("approval", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("收到非审批相关事件: {EventType}", callbackEvent.EventType);
+            return new ValidationResult { IsValid = false, ErrorMessage = "事件类型不是审批相关事件" };
+        }
+
+        // 验证时间戳（如果事件时间太旧，可能是重放攻击）
+        if (callbackEvent.EventTime > 0)
+        {
+            var eventTime = DateTimeOffset.FromUnixTimeSeconds(callbackEvent.EventTime);
+            var now = DateTimeOffset.UtcNow;
+            var timeDiff = now - eventTime;
+            
+            // 如果事件时间超过1小时，认为可能是重放攻击
+            if (timeDiff.TotalHours > 1)
+            {
+                _logger.LogWarning("收到过期事件 - 事件时间: {EventTime}, 当前时间: {Now}, 时间差: {TimeDiff}", 
+                    eventTime, now, timeDiff);
+                return new ValidationResult { IsValid = false, ErrorMessage = "事件时间过期" };
+            }
         }
         
         return await Task.FromResult(new ValidationResult { IsValid = true });

@@ -1,0 +1,180 @@
+### 测试简化后的Demo审批功能（使用固定参数类和处理类）
+
+### 1. 获取Demo审批信息
+GET http://localhost:5000/api/DemoApproval/info
+
+### 2. 快速测试Demo审批创建
+POST http://localhost:5000/api/DemoApproval/test
+
+### 3. 创建Demo审批（用户自定义数据）
+POST http://localhost:5000/api/DemoApproval/create
+Content-Type: application/json
+
+{
+    "姓名": "李四",
+    "年龄_岁": 30
+}
+
+### 4. 创建Demo审批（另一个用户）
+POST http://localhost:5000/api/DemoApproval/create
+Content-Type: application/json
+
+{
+    "姓名": "王五",
+    "年龄_岁": 28
+}
+
+### 5. 获取支持的审批类型
+GET http://localhost:5000/api/DemoApproval/types
+
+### 6. 检查Demo审批类型是否支持
+GET http://localhost:5000/api/DemoApproval/types/6A109ECD-3578-4243-93F9-DBDCF89515AF/supported
+
+### 2. 再次使用相同手机号创建审批（使用缓存，速度更快）
+POST http://localhost:5000/api/OptimizedApproval/create
+Content-Type: application/json
+
+{
+    "approvalCode": "EXPENSE_APPROVAL_001",
+    "applicantUserId": "13800138000",
+    "userIdType": "mobile",
+    "formData": "{\"amount\":1000,\"category\":\"差旅费\",\"description\":\"出差住宿费\"}",
+    "title": "费用报销申请"
+}
+
+### 3. 获取用户OpenId（展示缓存机制）
+GET http://localhost:5000/api/OptimizedApproval/user/13800138000/openid?userIdType=mobile
+
+### 4. 使用邮箱创建审批
+POST http://localhost:5000/api/OptimizedApproval/create
+Content-Type: application/json
+
+{
+    "approvalCode": "PURCHASE_APPROVAL_001",
+    "applicantUserId": "user@example.com",
+    "userIdType": "email",
+    "formData": "{\"item\":\"办公用品\",\"quantity\":10,\"unit_price\":50}",
+    "title": "采购申请"
+}
+
+### 5. 自动识别用户ID类型
+POST http://localhost:5000/api/OptimizedApproval/create
+Content-Type: application/json
+
+{
+    "approvalCode": "LEAVE_APPROVAL_002",
+    "applicantUserId": "ou_c7e1b45cf24942cf21ffb82267b1f2b0",
+    "userIdType": "auto",
+    "formData": "{\"leave_type\":\"病假\",\"days\":1,\"reason\":\"身体不适\"}",
+    "title": "病假申请"
+}
+
+### 6. 批量创建审批（展示缓存机制的性能优势）
+POST http://localhost:5000/api/OptimizedApproval/batch-create
+Content-Type: application/json
+
+{
+    "approvals": [
+        {
+            "approvalCode": "LEAVE_APPROVAL_001",
+            "applicantUserId": "13800138000",
+            "userIdType": "mobile",
+            "formData": "{\"leave_type\":\"年假\",\"days\":3}",
+            "title": "请假申请1"
+        },
+        {
+            "approvalCode": "LEAVE_APPROVAL_001",
+            "applicantUserId": "13800138000",
+            "userIdType": "mobile",
+            "formData": "{\"leave_type\":\"年假\",\"days\":2}",
+            "title": "请假申请2"
+        },
+        {
+            "approvalCode": "EXPENSE_APPROVAL_001",
+            "applicantUserId": "user@example.com",
+            "userIdType": "email",
+            "formData": "{\"amount\":500,\"category\":\"餐费\"}",
+            "title": "费用报销申请"
+        }
+    ]
+}
+
+### 7. 清除用户OpenId缓存
+DELETE http://localhost:5000/api/OptimizedApproval/user/13800138000/openid/cache?userIdType=mobile
+
+### 8. 测试改进后的审批创建功能（旧版本对比）
+
+### 9. 使用手机号创建审批
+POST http://localhost:5000/api/ImprovedApproval/create
+Content-Type: application/json
+
+{
+    "approvalCode": "LEAVE_APPROVAL_001",
+    "applicantUserId": "13800138000",
+    "userIdType": "mobile",
+    "formData": "{\"leave_type\":\"年假\",\"days\":3,\"reason\":\"家庭旅行\"}",
+    "title": "请假申请"
+}
+
+### 2. 使用邮箱创建审批
+POST http://localhost:5000/api/ImprovedApproval/create
+Content-Type: application/json
+
+{
+    "approvalCode": "EXPENSE_APPROVAL_001",
+    "applicantUserId": "user@example.com",
+    "userIdType": "email",
+    "formData": "{\"amount\":1000,\"category\":\"差旅费\",\"description\":\"出差住宿费\"}",
+    "title": "费用报销申请"
+}
+
+### 3. 自动识别用户ID类型
+POST http://localhost:5000/api/ImprovedApproval/create
+Content-Type: application/json
+
+{
+    "approvalCode": "PURCHASE_APPROVAL_001",
+    "applicantUserId": "ou_c7e1b45cf24942cf21ffb82267b1f2b0",
+    "userIdType": "auto",
+    "formData": "{\"item\":\"办公用品\",\"quantity\":10,\"unit_price\":50}",
+    "title": "采购申请"
+}
+
+### 4. 测试回调处理
+POST http://localhost:5000/api/ImprovedApproval/callback
+Content-Type: application/json
+
+{
+    "event_type": "approval_status_change",
+    "event_time": 1704067200,
+    "event_id": "evt_123456789",
+    "instance_code": "LEAVE_APPROVAL_001_20240101_001",
+    "approval_code": "LEAVE_APPROVAL_001",
+    "type": "approved",
+    "form": "{\"leave_type\":\"年假\",\"days\":3,\"reason\":\"家庭旅行\"}"
+}
+
+### 5. 测试回调验证失败（过期事件）
+POST http://localhost:5000/api/ImprovedApproval/callback
+Content-Type: application/json
+
+{
+    "event_type": "approval_status_change",
+    "event_time": 1604067200,
+    "event_id": "evt_123456790",
+    "instance_code": "LEAVE_APPROVAL_001_20240101_002",
+    "approval_code": "LEAVE_APPROVAL_001",
+    "type": "rejected",
+    "form": "{\"leave_type\":\"年假\",\"days\":3,\"reason\":\"家庭旅行\"}"
+}
+
+### 6. 测试回调验证失败（缺少必要字段）
+POST http://localhost:5000/api/ImprovedApproval/callback
+Content-Type: application/json
+
+{
+    "event_type": "approval_status_change",
+    "event_time": 1704067200,
+    "type": "approved",
+    "form": "{\"leave_type\":\"年假\",\"days\":3,\"reason\":\"家庭旅行\"}"
+}
