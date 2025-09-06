@@ -26,13 +26,7 @@ var builder = WebApplication.CreateBuilder(args);
 // 🎯 一行代码集成 - 智能扫描当前项目处理器
 builder.Services.AddFeishuApproval("Data Source=feishu.db", "sqlite");
 
-// 🎨 添加新一代模板系统支持（可自定义UI）
-builder.Services.AddFeishuDashboardTemplatesForProduction();
-
 var app = builder.Build();
-
-// 🚀 启用内置管理界面 V2 (基于模板系统)
-FeishuDashboardTemplateExtensions.MapFeishuDashboardV2(app, new FeishuDashboardOptions());
 
 app.Run();
 ```
@@ -45,19 +39,16 @@ app.Run();
 
 ```
 YourProject/
-├── Models/
-│   └── Approvals/          # 审批参数类文件夹
-│       ├── LeaveApprovalDto.cs
-│       ├── ExpenseApprovalDto.cs
-│       └── PurchaseApprovalDto.cs
-├── Handlers/
-│   └── Approvals/          # 审批处理器文件夹
-│       ├── LeaveApprovalHandler.cs
-│       ├── ExpenseApprovalHandler.cs
-│       └── PurchaseApprovalHandler.cs
-├── Controllers/
-│   └── ApprovalController.cs
-└── Program.cs
+├── FeishuApprovals/ # 飞书审批文件夹
+│    └── LeaveApproval/        
+│          ├── LeaveApprovalDto.cs
+│          ├── LeaveApprovalHandler.cs
+│    └── PurchaseApproval/          
+│          ├── PurchaseApprovalDto.cs
+│          ├── PurchaseApprovalHandler.cs
+│    └── ExpenseApproval/          
+│          ├── ExpenseApprovalDto.cs
+│          ├── ExpenseApprovalHandler.cs
 ```
 
 ### 4. 配置并使用
@@ -120,62 +111,108 @@ public class LeaveApprovalDto : FeishuApprovalRequestBase
 为每个审批类型创建对应的处理器：
 
 ```csharp
-// Handlers/Approvals/LeaveApprovalHandler.cs
+using BD.FeishuApproval.Abstractions.Handlers;
+using BD.FeishuApproval.Abstractions.Instances;
 using BD.FeishuApproval.Handlers;
-using YourProject.Models.Approvals;
 
-namespace YourProject.Handlers.Approvals;
+namespace FeishuApproval.SampleWeb.FeishuApprovals.DemoApproval;
 
-public class LeaveApprovalHandler : ApprovalHandlerBase<LeaveApprovalDto>
+/// <summary>
+/// Demo 审批处理器
+/// </summary>
+public class DemoApprovalHandler(
+    IFeishuApprovalInstanceService instanceService,
+    ILogger<DemoApprovalHandler> logger)
+    : ApprovalHandlerBase<DemoApprovalRequest>(instanceService, logger)
 {
-    private readonly IEmailService _emailService;
-    private readonly ILeaveService _leaveService;
+    #region ===== 必须实现的回调处理方法 =====
 
-    public LeaveApprovalHandler(
-        IFeishuApprovalInstanceService instanceService,
-        ILogger<LeaveApprovalHandler> logger,
-        IEmailService emailService,
-        ILeaveService leaveService) 
-        : base(instanceService, logger)
+    /// <summary>
+    /// 审批通过后的处理逻辑
+    /// </summary>
+    public override Task HandleApprovalApprovedAsync(ApprovalContext<DemoApprovalRequest> context)
     {
-        _emailService = emailService;
-        _leaveService = leaveService;
+        throw new NotImplementedException("请实现审批通过后的业务逻辑处理");
     }
 
-    // 审批通过后的业务处理
-    public override async Task HandleApprovalApprovedAsync(
-        LeaveApprovalDto approvalData, 
-        FeishuCallbackEvent callbackEvent)
+    /// <summary>
+    /// 审批拒绝后的处理逻辑
+    /// </summary>
+    public override Task HandleApprovalRejectedAsync(ApprovalContext<DemoApprovalRequest> context)
     {
-        // 1. 更新假期余额
-        await _leaveService.DeductLeaveBalanceAsync(
-            approvalData.UserId, 
-            approvalData.Days);
-
-        // 2. 发送通知邮件
-        await _emailService.SendApprovalNotificationAsync(
-            approvalData.UserId, 
-            $"您的{approvalData.Days}天{approvalData.LeaveType}已通过");
-
-        // 3. 记录到HR系统
-        await _leaveService.RecordApprovedLeaveAsync(approvalData);
-
-        await base.HandleApprovalApprovedAsync(approvalData, callbackEvent);
+        throw new NotImplementedException("请实现审批拒绝后的业务逻辑处理");
     }
 
-    // 审批前的验证
-    protected override async Task ValidateApprovalRequestAsync(LeaveApprovalDto request)
+    /// <summary>
+    /// 审批撤回后的处理逻辑
+    /// </summary>
+    public override Task HandleApprovalCancelledAsync(ApprovalContext<DemoApprovalRequest> context)
     {
-        // 检查假期余额
-        var balance = await _leaveService.GetLeaveBalanceAsync(request.UserId);
-        if (balance < request.Days)
-        {
-            throw new InvalidOperationException($"假期余额不足，剩余{balance}天");
-        }
-
-        await base.ValidateApprovalRequestAsync(request);
+        throw new NotImplementedException("请实现审批撤回后的业务逻辑处理");
     }
+
+    /// <summary>
+    /// 审批状态未知时的处理逻辑
+    /// </summary>
+    public override Task HandleUnknownStatusAsync(ApprovalContext<DemoApprovalRequest> context)
+    {
+        throw new NotImplementedException("请实现未知状态的处理逻辑");
+    }
+
+    /// <summary>
+    /// 业务异常处理逻辑
+    /// </summary>
+    public override Task HandleBusinessExceptionAsync(ApprovalContext<DemoApprovalRequest> context, Exception exception)
+    {
+        throw new NotImplementedException("请实现业务异常处理逻辑");
+    }
+
+    #endregion
+
+    #region ===== 可选的校验和生命周期钩子 =====
+
+    /// <summary>
+    /// 审批请求验证逻辑（可选重写）
+    /// </summary>
+    protected override async Task ValidateApprovalRequestAsync(DemoApprovalRequest request)
+    {
+        // 在这里实现自定义的验证逻辑
+        // 如果验证失败，抛出相应的异常
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 审批创建前预处理逻辑（可选重写）ersAsync(request);
+    /// request.PrepareAdditionalData();
+    /// </summary>
+    protected override async Task PreProcessApprovalAsync(DemoApprovalRequest request)
+    {
+        // 在这里实现创建审批前的预处理逻辑
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 审批创建成功后处理逻辑（可选重写）
+    /// </summary>
+    protected override async Task PostProcessApprovalAsync(DemoApprovalRequest request, BD.FeishuApproval.Shared.Dtos.Instances.CreateInstanceResult result)
+    {
+        // 在这里实现审批创建成功后的处理逻辑
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 审批创建失败处理逻辑（可选重写
+    /// </summary>
+    protected override async Task HandleCreateFailureInternalAsync(DemoApprovalRequest request, Exception exception)
+    {
+        // 在这里实现审批创建失败时的处理逻辑
+        await Task.CompletedTask;
+    }
+
+    #endregion
 }
+
+
 ```
 
 #### 3. 处理器注册 (`Program.cs`) - **多种灵活选项**
@@ -223,154 +260,47 @@ builder.Services.AddApprovalHandlersFromAssembly(typeof(CommonHandlers).Assembly
 #### 4. 控制器使用 (`Controllers/`)
 
 ```csharp
-// Controllers/ApprovalController.cs
-[ApiController]
-[Route("api/[controller]")]
-public class ApprovalController : ControllerBase
-{
-    // 方式一：直接注入具体处理器（类型安全）
-    private readonly IApprovalHandler<LeaveApprovalDto> _leaveHandler;
-    private readonly IApprovalHandler<ExpenseApprovalDto> _expenseHandler;
 
-    // 方式二：注入处理器注册表（动态路由）
-    private readonly IApprovalHandlerRegistry _handlerRegistry;
-
-    public ApprovalController(
-        IApprovalHandler<LeaveApprovalDto> leaveHandler,
-        IApprovalHandler<ExpenseApprovalDto> expenseHandler,
-        IApprovalHandlerRegistry handlerRegistry)
+    [ApiController]
+    [Route("api/[controller]")]
+    public async Task<IActionResult> CreateDemoApproval([FromBody] DemoApprovalRequest request)
     {
-        _leaveHandler = leaveHandler;
-        _expenseHandler = expenseHandler;
-        _handlerRegistry = handlerRegistry;
-    }
-
-    // 类型安全的审批创建
-    [HttpPost("leave")]
-    public async Task<IActionResult> CreateLeaveApproval([FromBody] LeaveApprovalDto request)
-    {
-        var result = await _leaveHandler.CreateApprovalAsync(request);
-        return Ok(result);
-    }
-
-    [HttpPost("expense")]  
-    public async Task<IActionResult> CreateExpenseApproval([FromBody] ExpenseApprovalDto request)
-    {
-        var result = await _expenseHandler.CreateApprovalAsync(request);
-        return Ok(result);
-    }
-
-    // 动态路由方式（适合审批类型很多的场景）
-    [HttpPost("create/{approvalType}")]
-    public async Task<IActionResult> CreateApproval(string approvalType, [FromBody] JsonElement requestData)
-    {
-        var handler = _handlerRegistry.GetHandler(approvalType);
-        if (handler == null)
+        try
         {
-            return BadRequest($"不支持的审批类型: {approvalType}");
-        }
+            var demo = new DemoApprovalRequest
+            {
+                姓名 = "张三",
+                年龄_岁 = 15
+            };
+            var result = await _approvalService.CreateApprovalAsync(demo, _fakeUserId);
 
-        // 创建回调事件来处理动态数据
-        var callbackEvent = new FeishuCallbackEvent 
-        { 
-            Form = requestData.GetRawText(),
-            ApprovalCode = approvalType
-        };
-        
-        await handler.HandleCallbackAsync(callbackEvent);
-        return Ok("审批创建成功");
+            
+            return Ok(new
+            {
+                Success = true,
+                Message = "Demo审批创建成功",
+                Data = new
+                {
+                    InstanceCode = result.InstanceCode,
+                    ApprovalCode = "6A109ECD-3578-4243-93F9-DBDCF89515AF", // 从特性获取
+                    UserId = _fakeUserId,
+                    CreateTime = DateTime.Now,
+                    FormData = new
+                    {
+                        Name = request.姓名,
+                        Age = request.年龄_岁
+                    }
+                }
+            });
+        }
+        catch (InvalidOperationException ex){}
+        catch (ArgumentException ex){}
+        catch (Exception ex){}
     }
-}
 ```
 
 #### 5. 自定义飞书回调处理 (`Controllers/`)
 
-SDK提供了内置的飞书回调处理基类，你只需继承并自定义相关逻辑：
-
-```csharp
-// Controllers/FeishuCallbackController.cs
-using BD.FeishuApproval.Callbacks;
-using BD.FeishuApproval.Controllers;
-using BD.FeishuApproval.Shared.Events;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-
-[Route("api/feishu/approval/callback")]
-public class FeishuCallbackController : FeishuCallbackControllerBase
-{
-    public FeishuCallbackController(
-        IFeishuCallbackService callbackService,
-        ILogger<FeishuCallbackController> logger) 
-        : base(callbackService, logger)
-    {
-    }
-
-    // ✅ 可选：自定义回调日志记录
-    protected override async Task LogCallbackReceived(object callbackData)
-    {
-        _logger.LogInformation("🔔 收到飞书审批回调: {Data}", callbackData);
-        
-        // 可以添加自定义日志逻辑，如写入审计日志
-        // await _auditService.LogCallbackAsync(callbackData);
-        
-        await base.LogCallbackReceived(callbackData);
-    }
-
-    // ✅ 可选：自定义成功响应格式
-    protected override async Task<IActionResult> HandleCallbackSuccess(FeishuCallbackEvent callbackEvent)
-    {
-        return Ok(new 
-        { 
-            success = true, 
-            message = "✅ 回调处理成功", 
-            instanceCode = callbackEvent.InstanceCode,
-            timestamp = DateTime.UtcNow
-        });
-    }
-
-    // ✅ 可选：自定义回调验证逻辑
-    protected override async Task<ValidationResult> ValidateCallback(FeishuCallbackEvent callbackEvent)
-    {
-        // 基础验证
-        var baseResult = await base.ValidateCallback(callbackEvent);
-        if (!baseResult.IsValid)
-            return baseResult;
-
-        // 自定义业务验证
-        if (string.IsNullOrEmpty(callbackEvent.ApprovalCode))
-        {
-            return new ValidationResult 
-            { 
-                IsValid = false, 
-                ErrorMessage = "缺少审批代码" 
-            };
-        }
-
-        // 可以添加更多验证逻辑，如签名验证、IP白名单等
-        // if (!await _securityService.ValidateCallbackSignatureAsync(callbackEvent))
-        //     return new ValidationResult { IsValid = false, ErrorMessage = "签名验证失败" };
-
-        return new ValidationResult { IsValid = true };
-    }
-
-    // ✅ 可选：自定义异常处理
-    protected override async Task<IActionResult> HandleException(Exception ex, object callbackData)
-    {
-        _logger.LogError(ex, "❌ 处理飞书回调异常");
-        
-        // 可以添加自定义错误处理逻辑
-        // await _alertService.SendErrorAlertAsync(ex, callbackData);
-        
-        return StatusCode(500, new 
-        { 
-            success = false, 
-            message = "回调处理失败", 
-            error = ex.Message,
-            timestamp = DateTime.UtcNow
-        });
-    }
-}
-```
 
 **🎯 可重写的方法说明**：
 
@@ -419,7 +349,7 @@ builder.Services.AddFeishuApprovalWithInMemorySQLite();
 // "questtdb", "hg", "custom"
 ```
 
-### 🎨 自定义管理界面（新一代模板系统）
+### 🎨 自定义管理界面
 
 #### 方案一：使用内置模板（推荐）
 ```csharp
@@ -529,41 +459,7 @@ SDK提供类型安全的审批操作，防止开发者传错类型或审批代�
 SDK自动从飞书审批表单生成类型安全的C#类：
 
 ```csharp
-// 从飞书审批定义生成 - 实现IFeishuApprovalRequest接口确保类型安全
-[ApprovalCode("leave_approval")]
-public class LeaveApprovalRequest : FeishuApprovalRequestBase
-{
-    [JsonPropertyName("leave_type")]
-    public string LeaveType { get; set; }
 
-    [JsonPropertyName("start_time")]
-    public string StartTime { get; set; }
-
-    [JsonPropertyName("end_time")]
-    public string EndTime { get; set; }
-
-    [JsonPropertyName("reason")]
-    public string Reason { get; set; }
-}
-
-// 在代码中类型安全地使用
-var leaveRequest = new LeaveApprovalRequest
-{
-    LeaveType = "年假",
-    StartTime = "2024-01-01",
-    EndTime = "2024-01-03",
-    Reason = "家庭旅行"
-};
-
-// 推荐：使用类型安全的扩展方法 - 审批代码自动从特性获取
-await _instanceService.CreateTypedInstanceAsync(leaveRequest);
-
-// 也可以使用原始方法，但容易出错
-// await _instanceService.CreateInstanceAsync(new CreateInstanceRequest
-// {
-//     ApprovalCode = "leave_approval", // 容易与实际代码不一致
-//     FormData = JsonSerializer.Serialize(leaveRequest)
-// });
 ```
 
 ## 🏗️ 架构和扩展性
@@ -571,74 +467,8 @@ await _instanceService.CreateTypedInstanceAsync(leaveRequest);
 ### 健康监控
 
 ```csharp
-public class HealthController : ControllerBase
-{
-    private readonly IFeishuHealthCheckService _healthService;
-
-    [HttpGet("health")]
-    public async Task<IActionResult> CheckHealth()
-    {
-        var health = await _healthService.CheckHealthAsync();
-        
-        return health.OverallStatus switch
-        {
-            HealthStatus.Healthy => Ok(health),
-            HealthStatus.Degraded => Ok(health),
-            HealthStatus.Unhealthy => StatusCode(503, health),
-            _ => StatusCode(500, health)
-        };
-    }
-}
 ```
 
-### 自定义审批策略
-
-```csharp
-public class LeaveApprovalStrategy : IApprovalStrategy
-{
-    public string ApprovalCode => "leave_approval";
-
-    public async Task<bool> BeforeCreateAsync(CreateInstanceRequest request)
-    {
-        // 自定义验证逻辑
-        var leaveData = JsonSerializer.Deserialize<LeaveApprovalRequest>(request.FormData);
-        return DateTime.Parse(leaveData.StartTime) > DateTime.Now;
-    }
-
-    public async Task AfterCreateAsync(CreateInstanceResult result)
-    {
-        // 创建后的业务逻辑（通知等）
-        await SendNotificationAsync(result);
-    }
-}
-
-// 注册你的策略
-builder.Services.AddScoped<IApprovalStrategy, LeaveApprovalStrategy>();
-```
-
-### 自定义配置提供者
-
-```csharp
-public class CustomConfigProvider : IFeishuConfigProvider
-{
-    public FeishuApiOptions GetApiOptions() => new()
-    {
-        AppId = Environment.GetEnvironmentVariable("FEISHU_APP_ID"),
-        AppSecret = Environment.GetEnvironmentVariable("FEISHU_APP_SECRET"),
-        BaseUrl = "https://open.feishu.cn"
-    };
-
-    public FeishuCallbackOptions GetCallbackOptions() => new()
-    {
-        EncryptKey = Environment.GetEnvironmentVariable("FEISHU_ENCRYPT_KEY"),
-        VerificationToken = Environment.GetEnvironmentVariable("FEISHU_VERIFICATION_TOKEN")
-    };
-}
-
-builder.Services.AddScoped<IFeishuConfigProvider, CustomConfigProvider>();
-```
-
-## 📊 功能路线图
 
 ### ✅ 已完成功能
 
@@ -647,15 +477,14 @@ builder.Services.AddScoped<IFeishuConfigProvider, CustomConfigProvider>();
 - [x] **类型安全约束** - 编译时强制类型检查，防止传错审批类型
 - [x] **内置Web控制台** - `/feishu` 完整管理界面
 - [x] **自动实体生成** - 从飞书表单生成C#类
-- [x] **批量操作支持** - 创建、查询、撤销多个审批
 - [x] **健康监控系统** - 实时系统状态检查
 - [x] **完整日志记录** - 请求/响应/管理操作追踪
 - [x] **管理API接口** - 所有控制台功能通过REST API暴露
 - [x] **API客户端库** - 便利的API调用客户端
 - [x] **安全加固** - PBKDF2密码哈希、SQL注入防护
 - [x] **异常处理机制** - 完善的异常处理和重试机制
-- [x] **自定义策略支持** - 可扩展的审批工作流模式
-- [x] **NuGet包配置** - 生产就绪的包配置
+- [ ] **自定义策略支持** - 可扩展的审批工作流模式
+- [ ] **NuGet包配置** - 生产就绪的包配置
 
 ### 🚧 开发中功能
 

@@ -83,14 +83,6 @@ public class ApprovalService : IApprovalService
 
 
             var result = await _instanceService.CallFeishuCreateInstanceApiAsync(feishuRequestBody);
-            /*
-        // 调用原始的创建方法
-        return await instanceService.CreateInstanceAsync(new CreateInstanceRequest
-        {
-            ApprovalCode = approvalCode,
-            FormData = formData,
-            ApplicantUserId = userId.ToString()
-        });*/
 
             if (!result.IsSuccess || result.Data == null)
             {
