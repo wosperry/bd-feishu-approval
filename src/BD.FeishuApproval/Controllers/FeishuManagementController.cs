@@ -2,6 +2,7 @@
 using BD.FeishuApproval.Abstractions.Health;
 using BD.FeishuApproval.Abstractions.Management;
 using BD.FeishuApproval.Shared.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -14,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -295,69 +297,96 @@ public class FeishuManagementController : ControllerBase
     /// 处理URL验证和事件推送
     /// </summary>
     [HttpPost("health")]
-    public async Task<IActionResult> FeishuEventCallback(EncryptedRequest data)
+    public async Task<IActionResult> FeishuEventCallback()
     {
         try
         {
-            // 读取原始请求体
-            string requestBody;
-            using (var reader = new System.IO.StreamReader(Request.Body))
+            // 关键：启用缓冲并确保流可 Seek
+            Request.EnableBuffering();
+
+            // 必须检查流是否可 Seek（某些环境下可能不支持）
+            if (!Request.Body.CanSeek)
             {
-                requestBody = await reader.ReadToEndAsync();
-                _logger.LogInformation($"request body : {requestBody}");
+                return BadRequest("请求流不支持重置位置");
             }
 
-            var config = await _managementService.GetConfigurationStatusAsync(false);
- 
-            // 解密数据
-            string decryptedData = _managementService.DecryptFeishuData(data.Encrypt, config.FeishuConfig.EncryptKey);
-            if (string.IsNullOrEmpty(decryptedData))
+            // 重置流位置到起始点
+            Request.Body.Position = 0;
+
+            // 使用非托管方式读取，避免编码问题
+            using (var ms = new MemoryStream())
             {
-                return BadRequest("解密失败");
+                // 复制到内存流（最可靠的方式）
+                await Request.Body.CopyToAsync(ms);
+                byte[] rawBytes = ms.ToArray();
+
+                // 转换为字符串（根据实际编码调整）
+                string rawBody = Encoding.UTF8.GetString(rawBytes);
+
+                // 重置流位置，供后续中间件使用
+                Request.Body.Position = 0;
+
+                using (var reader = new System.IO.StreamReader(Request.Body))
+                {
+                    rawBody = await reader.ReadToEndAsync();
+                    _logger.LogInformation($"request body : {rawBody}");
+                }
+
+                var config = await _managementService.GetConfigurationStatusAsync(false);
+
+                var bodyObj = JsonConvert.DeserializeObject<EncryptedRequest>(rawBody);
+
+                // 解密数据
+                string decryptedData = _managementService.DecryptFeishuData(bodyObj.Encrypt, config.FeishuConfig.EncryptKey);
+                if (string.IsNullOrEmpty(decryptedData))
+                {
+                    return BadRequest("解密失败");
+                }
+                // 解析解密后的数据
+                var jsonData = JObject.Parse(decryptedData);
+
+
+                // 验证签名
+                bool isSignatureValid = VerifySignature(rawBody, config.FeishuConfig.EncryptKey);
+                if (!isSignatureValid)
+                {
+                    return Ok(new { result = "failed", challenge = jsonData["challenge"].ToString() });
+                }
+
+                // 处理URL验证请求
+                if (jsonData.ContainsKey("challenge"))
+                {
+                    return Ok(new { result = "success", challenge = jsonData["challenge"].ToString() });
+                }
+
+                // 处理事件回调请求
+                if (jsonData.ContainsKey("event"))
+                {
+                    // TODO: 这里可以添加事件处理逻辑<{"uuid":"c37feb53316b5f2272434a56e6e20972","event":{"app_id":"cli_a824cc531af9901c","definition_code":"6A109ECD-3578-4243-93F9-DBDCF89515AF","definition_name":"Demo审批","end_time":1757196756,"event":"approve","instance_code":"690BDD40-478C-4D41-A40E-F05D5C4614E0","start_time":1757196751,"tenant_key":"164b0c92b90bd75f","type":"approval"},"token":"SPziuIXJboVIYmRqMwYTkYV3R5IHQaPu","ts":"1757196758.459022","type":"event_callback"}>
+                    var eventType = jsonData["event"]["type"].ToString();
+                    // 记录事件日志
+                    Console.WriteLine($"收到飞书事件: {eventType}, 数据: {decryptedData}");
+
+                    // 飞书要求回调接口返回200空响应
+                    return Ok();
+                }
             }
-
-            // 解析解密后的数据
-            var jsonData = JObject.Parse(decryptedData);
-
-            // 验证签名
-            bool isSignatureValid = VerifySignature(requestBody, config.FeishuConfig.VerificationToken);
-            if (!isSignatureValid)
-            {
-                return Ok(new { result = "failed", challenge = jsonData["challenge"].ToString() });
-            }
-
-            // 处理URL验证请求
-            if (jsonData.ContainsKey("challenge"))
-            {
-                return Ok(new { result = "success", challenge = jsonData["challenge"].ToString() });
-            }
-
-            // 处理事件回调请求
-            if (jsonData.ContainsKey("event"))
-            {
-                // 这里可以添加事件处理逻辑
-                var eventType = jsonData["header"]["event_type"].ToString();
-                // 记录事件日志
-                Console.WriteLine($"收到飞书事件: {eventType}, 数据: {decryptedData}");
-
-                // 飞书要求回调接口返回200空响应
-                return Ok();
-            }
-
-            return Ok();
         }
         catch (Exception ex)
         {
+            // 详细日志记录
+            Console.WriteLine($"读取请求体失败: {ex.Message}");
             // 记录错误日志
             Console.WriteLine($"处理飞书回调出错: {ex.Message}, 堆栈: {ex.StackTrace}");
             return StatusCode(500, "服务器内部错误");
         }
+        return Ok();
     }
 
     /// <summary>
     /// 验证请求签名
     /// </summary>
-    private bool VerifySignature(string requestBody, string verificationToken)
+    private bool VerifySignature(string requestBody, string encrytKey)
     {
         // 记录所有请求头
         var headers = new Dictionary<string, string>();
@@ -379,13 +408,18 @@ public class FeishuManagementController : ControllerBase
             return false;
 
         // 拼接字符串
-        string signatureBase = $"{timestamp}{nonce}{verificationToken}{requestBody}";
+        string signatureBase = $"{timestamp}{nonce}{encrytKey}{requestBody}";
 
         // 计算SHA256哈希
         using (var sha256 = SHA256.Create())
         {
             byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(signatureBase));
             string computedSignature = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+
+            // 调试时可以输出计算过程以便排查
+            _logger.LogDebug($"计算的签名: {computedSignature}");
+            _logger.LogDebug($"收到的签名: {signature}");
+            _logger.LogDebug($"签名基础字符串: {signatureBase}");
 
             // 比较签名
             return computedSignature == signature;
