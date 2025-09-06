@@ -1,0 +1,31 @@
+﻿ <Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.1</TargetFramework>
+		<RootNamespace>BD.FeishuApproval</RootNamespace>
+		<LangVersion>12.0</LangVersion>
+		<Nullable>disable</Nullable>
+		
+		<!-- NuGet Package Configuration -->
+		<PackageId>BD.FeishuSDK.Approval.Shared</PackageId>
+		<Title>飞书审批工作流 SDK - 共享模型</Title>
+		<PackageVersion>1.0.0</PackageVersion>
+		<Authors>BD Team</Authors>
+		<Company>BD</Company>
+		<Description>飞书审批工作流 SDK 的共享模型和数据传输对象，包含实体定义、配置选项、异常类型等。</Description>
+		<PackageTags>feishu;lark;approval;models;dto</PackageTags>
+		<PackageProjectUrl>https://github.com/your-org/BD.FeishuSDK</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/your-org/BD.FeishuSDK</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="System.Text.Json" Version="9.0.8" />
+		<PackageReference Include="SqlSugarCore" Version="5.1.4.200" />
+	</ItemGroup>
+
+</Project>

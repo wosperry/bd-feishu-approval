@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>飞书签名计算器</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 20px; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        input, textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        textarea { min-height: 120px; resize: vertical; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #0056b3; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; background: #f8f9fa; }
+        .result h3 { margin-top: 0; color: #28a745; }
+        .error { color: #dc3545; font-weight: bold; }
+        .tip { font-size: 12px; color: #6c757d; margin-top: 3px; }
+        .refresh-btn { margin-left: 10px; padding: 5px 10px; font-size: 12px; background: #6c757d; }
+        .refresh-btn:hover { background: #5a6268; }
+    </style>
+</head>
+<body>
+    <h1>飞书签名计算器</h1>
+
+    <!-- 输入区域 -->
+    <div class="input-group">
+        <label for="timestamp">1. timestamp（10位秒级时间戳）</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="timestamp" placeholder="例如：1725590000" value="">
+            <button class="refresh-btn" onclick="refreshTimestamp()">刷新</button>
+        </div>
+        <div class="tip">已自动生成当前时间戳，点击刷新可更新</div>
+    </div>
+
+    <div class="input-group">
+        <label for="nonce">2. nonce（随机字符串）</label>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="nonce" placeholder="例如：feishu_nonce_123!@#" value="">
+            <button class="refresh-btn" onclick="generateNonce()">重新生成</button>
+        </div>
+        <div class="tip">已自动生成随机字符串，点击重新生成可更换</div>
+    </div>
+
+    <div class="input-group">
+        <label for="verificationToken">3. VerificationToken（飞书验证令牌）</label>
+        <input type="text" id="verificationToken" placeholder="你的飞书VerificationToken" value="SPziuIXJboVIYmRqMwYTkYV3R5IHQaPu">
+        <div class="tip">请填写你的飞书应用VerificationToken</div>
+    </div>
+
+    <div class="input-group">
+        <label for="requestBody">4. requestBody（请求体JSON字符串，无空格）</label>
+        <textarea id="requestBody" placeholder='例如：{"type":"url_verification","challenge":"123456","token":"SPziuIXJboVIYmRqMwYTkYV3R5IHQaPu"}'>{"type":"url_verification","challenge":"test_challenge_654321","token":"SPziuIXJboVIYmRqMwYTkYV3R5IHQaPu"}</textarea>
+        <div class="tip">必须是压缩格式（无多余空格/换行），可填URL验证或事件回调的JSON</div>
+    </div>
+
+    <!-- 计算按钮 -->
+    <button onclick="calculateFeishuSignature()">计算X-Lark-Signature签名</button>
+
+    <!-- 结果展示区域 -->
+    <div class="result" id="result" style="display: none;">
+        <h3>计算结果</h3>
+        <p><strong>拼接的原始字符串：</strong><br><span id="rawString"></span></p>
+        <p><strong>飞书签名（X-Lark-Signature）：</strong><br><span id="signature" style="color: #dc3545; font-size: 16px;"></span></p>
+    </div>
+
+    <script>
+        // 页面加载时自动生成时间戳和随机字符串
+        window.onload = function() {
+            refreshTimestamp();
+            generateNonce();
+        };
+
+        // 生成当前秒级时间戳
+        function refreshTimestamp() {
+            const timestamp = Math.floor(Date.now() / 1000).toString();
+            document.getElementById('timestamp').value = timestamp;
+        }
+
+        // 生成随机字符串（包含字母、数字、特殊字符）
+        function generateNonce() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+            const length = 16;
+            let nonce = '';
+            for (let i = 0; i < length; i++) {
+                const randomIndex = Math.floor(Math.random() * chars.length);
+                nonce += chars[randomIndex];
+            }
+            document.getElementById('nonce').value = nonce;
+        }
+
+        /**
+         * 计算飞书签名（核心逻辑）
+         * 规则：SHA256(timestamp + nonce + verificationToken + requestBody) → 小写十六进制
+         */
+        async function calculateFeishuSignature() {
+            // 1. 获取输入参数
+            const timestamp = document.getElementById('timestamp').value.trim();
+            const nonce = document.getElementById('nonce').value.trim();
+            const verificationToken = document.getElementById('verificationToken').value.trim();
+            const requestBody = document.getElementById('requestBody').value.trim();
+            const resultEl = document.getElementById('result');
+            const rawStringEl = document.getElementById('rawString');
+            const signatureEl = document.getElementById('signature');
+
+            // 2. 验证参数是否完整
+            if (!timestamp || !nonce || !verificationToken || !requestBody) {
+                alert('请填写所有必填参数！');
+                return;
+            }
+            if (timestamp.length !== 10 || isNaN(Number(timestamp))) {
+                alert('timestamp必须是10位数字（秒级时间戳）！');
+                return;
+            }
+
+            try {
+                // 3. 按飞书规则拼接字符串
+                const rawString = timestamp + nonce + verificationToken + requestBody;
+                rawStringEl.textContent = rawString; // 展示拼接结果，方便调试
+
+                // 4. 使用Web Crypto API计算SHA256哈希
+                // 步骤：字符串 → UTF-8字节数组 → SHA256哈希 → 小写十六进制字符串
+                const encoder = new TextEncoder();
+                const data = encoder.encode(rawString);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const signature = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+
+                // 5. 展示结果
+                signatureEl.textContent = signature;
+                resultEl.style.display = 'block';
+            } catch (error) {
+                console.error('计算签名失败：', error);
+                alert('计算签名时发生错误，请查看控制台！');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "FeishuApproval.SampleWeb": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "launchUrl": "feishu",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://0.0.0.0:62306;http://0.0.0.0:62307"
+    }
+  }
+}

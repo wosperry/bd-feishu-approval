@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang='zh-CN'>
+<head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <title>飞书管理页 - 系统配置</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            color: white;
+        }
+        
+        .header-left h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        
+        .header-left p {
+            opacity: 0.8;
+            font-size: 0.875rem;
+        }
+        
+        .header-right {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .back-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .setup-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+        
+        .card-desc {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        
+        .form-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        .form-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: white;
+            color: var(--text);
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        
+        .form-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+        
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .actions-row {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+        
+        .hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            line-height: 1.4;
+        }
+        
+        .help-text {
+            background: #f0f9ff;
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+            font-size: 0.875rem;
+        }
+        
+        .help-text h4 {
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+        
+        .help-text ol {
+            padding-left: 1.25rem;
+        }
+        
+        .help-text li {
+            margin-bottom: 0.25rem;
+        }
+        
+        .output-card {
+            border-top: 4px solid var(--primary);
+        }
+        
+        .output-area {
+            background: #f8fafc;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            z-index: 1000;
+            min-width: 300px;
+        }
+        
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            border-left: 4px solid var(--success);
+        }
+        
+        .toast.error {
+            border-left: 4px solid var(--danger);
+        }
+        
+        @media (max-width: 768px) {
+            .setup-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                flex-direction: column;
+            }
+            
+            .actions-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <div class='header-left'>
+                <h1>⚙️ 系统管理</h1>
+                <p>配置飞书应用凭证、管理审批流程、生成代码模板</p>
+            </div>
+            <div class='header-right'>
+                <a href='/api/docs' class='back-btn' style='margin-right: 1rem;'>📚 API文档</a>
+                <a href='{{PathPrefix}}' class='back-btn'>← 返回控制面板</a>
+            </div>
+        </div>
+        
+        <div class='setup-grid'>
+            <!-- 管理口令验证 -->
+            <div class='card'>
+                <div class='card-header'>
+                    <div class='step-number'>1</div>
+                    <div>
+                        <div class='card-title'>管理口令验证</div>
+                        <div class='card-desc'>输入管理口令以进行系统配置</div>
+                    </div>
+                </div>
+                
+                <div class='form-section'>
+                    <div class='form-row'>
+                        <input id='pwd' type='password' placeholder='输入管理口令进行验证' class='form-input'>
+                        <button class='btn btn-outline' onclick='verifyPwd()'>
+                            🔍 验证口令
+                        </button>
+                    </div>
+                    <div class='hint'>管理口令用于保护系统配置安全</div>
+                </div>
+            </div>
+
+            <!-- 飞书应用配置 -->
+            <div class='card'>
+                <div class='card-header'>
+                    <div class='step-number'>2</div>
+                    <div>
+                        <div class='card-title'>飞书应用配置</div>
+                        <div class='card-desc'>配置飞书开放平台的应用凭证</div>
+                    </div>
+                </div>
+                
+                <div class='form-section'>
+                    <label class='form-label'>App ID (必填)</label>
+                    <div class='form-row'>
+                        <input id='appId' placeholder='cli_a1234567890abcde' class='form-input'>
+                    </div>
+                    
+                    <div class='help-text'>
+                        <h4>📱 如何获取 App ID？</h4>
+                        <ol>
+                            <li>登录 <a href='https://open.feishu.cn/app' target='_blank'>飞书开放平台</a></li>
+                            <li>选择你的应用（如果没有应用，点击"创建应用"）</li>
+                            <li>进入"应用信息" → "基础信息"</li>
+                            <li>复制"App ID"字段的值（格式：cli_xxxxxxx）</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <div class='form-section'>
+                    <label class='form-label'>App Secret (必填)</label>
+                    <div class='form-row'>
+                        <input id='appSecret' placeholder='应用密钥' type='password' class='form-input'>
+                    </div>
+                    
+                    <div class='help-text'>
+                        <h4>🔐 如何获取 App Secret？</h4>
+                        <ol>
+                            <li>在飞书开放平台的应用页面</li>
+                            <li>进入"应用信息" → "基础信息"</li>
+                            <li>找到"App Secret"字段，点击"查看"按钮</li>
+                            <li>复制显示的密钥值</li>
+                        </ol>
+                        <p><strong>⚠️ 注意：</strong> App Secret 是敏感信息，请妥善保管</p>
+                    </div>
+                </div>
+                
+                <div class='form-section'>
+                    <label class='form-label'>可选配置</label>
+                    <div class='form-row'>
+                        <input id='encryptKey' placeholder='消息加密Key (可选)' class='form-input'>
+                        <input id='vt' placeholder='事件订阅Token (可选)' class='form-input'>
+                    </div>
+                    <div class='hint'>如果只用于发起审批，可选配置项可以留空</div>
+                </div>
+                
+                <div class='actions-row'>
+                    <button class='btn btn-primary' onclick='saveCfg()'>
+                        💾 保存配置
+                    </button>
+                    <button class='btn btn-outline' onclick='checkCfg()'>
+                        🔍 检测状态
+                    </button>
+                </div>
+            </div>
+
+            <!-- 审批流程登记 -->
+            <div class='card'>
+                <div class='card-header'>
+                    <div class='step-number'>3</div>
+                    <div>
+                        <div class='card-title'>审批流程登记</div>
+                        <div class='card-desc'>登记飞书审批的 approval_code</div>
+                    </div>
+                </div>
+                
+                <div class='help-text'>
+                    <h4>📋 如何获取审批代码？</h4>
+                    <ol>
+                        <li>登录 <a href='https://www.feishu.cn/approval/create' target='_blank'>飞书审批管理后台</a></li>
+                        <li>创建或找到你的审批应用</li>
+                        <li>在应用设置中找到"审批代码"（UUID格式）</li>
+                        <li>确保飞书应用已开通"审批"API权限</li>
+                    </ol>
+                </div>
+                
+                <div class='form-section'>
+                    <div class='form-row'>
+                        <input id='approvalCode' placeholder='7C468A54-8745-2245-9675-08DC917F109D' class='form-input'>
+                        <input id='displayName' placeholder='显示名称 (如：请假申请)' class='form-input'>
+                    </div>
+                </div>
+                
+                <div class='actions-row'>
+                    <button class='btn btn-primary' onclick='reg()'>
+                        📝 登记审批
+                    </button>
+                    <button class='btn btn-outline' onclick='loadRegistrations()'>
+                        📋 查看已登记
+                    </button>
+                </div>
+            </div>
+
+            <!-- 代码生成器 -->
+            <div class='card'>
+                <div class='card-header'>
+                    <div class='step-number'>4</div>
+                    <div>
+                        <div class='card-title'>代码生成器</div>
+                        <div class='card-desc'>自动生成 C# 请求实体类</div>
+                    </div>
+                </div>
+                
+                <div class='form-section'>
+                    <label class='form-label'>审批代码 (必填)</label>
+                    <div class='form-row'>
+                        <input id='code' placeholder='如: leave_approval_001' class='form-input'>
+                    </div>
+                    
+                    <label class='form-label'>生成的类名 (可选)</label>
+                    <div class='form-row'>
+                        <input id='className' placeholder='如: LeaveApprovalRequest (留空使用默认名称)' class='form-input'>
+                        <button class='btn btn-primary' onclick='gen()'>
+                            🚀 生成代码
+                        </button>
+                    </div>
+                    <div class='hint'>
+                        <strong>类名规范：</strong> 使用有意义的名称，如 LeaveApprovalRequest、ExpenseReimbursementRequest 等<br>
+                        <strong>审批代码：</strong> 从飞书审批定义中获取，通过 [ApprovalCode] 特性关联
+                    </div>
+                </div>
+            </div>
+
+            <!-- 输出结果 -->
+            <div class='card output-card'>
+                <div class='card-header'>
+                    <div style='width: 32px; height: 32px; border-radius: 50%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;'>📤</div>
+                    <div>
+                        <div class='card-title'>输出结果</div>
+                        <div class='card-desc'>操作结果和生成的代码将在此显示</div>
+                    </div>
+                </div>
+                
+                <div id='output' class='output-area'>
+等待操作...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentPassword = '';
+        
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + (type || 'success');
+            toast.innerHTML = '<div style="font-weight: 500; margin-bottom: 0.25rem;">' + (type === 'error' ? '❌ 错误' : '✅ 成功') + '</div><div>' + message + '</div>';
+            document.body.appendChild(toast);
+            
+            setTimeout(function() { toast.classList.add('show'); }, 100);
+            setTimeout(function() {
+                toast.classList.remove('show');
+                setTimeout(function() { document.body.removeChild(toast); }, 300);
+            }, 3000);
+        }
+        
+        function updateOutput(content, type) {
+            const output = document.getElementById('output');
+            output.textContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+            output.className = 'output-area';
+        }
+        
+        function verifyPwd() {
+            const pwd = document.getElementById('pwd').value;
+            if (!pwd || !pwd.trim()) {
+                showToast('请输入管理口令', 'error');
+                return;
+            }
+            
+            currentPassword = pwd;
+            showToast('口令已缓存，可用于后续操作');
+            updateOutput('✅ 管理口令已验证并缓存\n\n现在可以进行配置保存和审批登记操作', 'success');
+        }
+        
+        async function saveCfg() {
+            const pwd = currentPassword || document.getElementById('pwd').value;
+            if (!pwd || !pwd.trim()) {
+                showToast('请先设置管理口令', 'error');
+                return;
+            }
+            
+            const config = {
+                appId: document.getElementById('appId').value || '',
+                appSecret: document.getElementById('appSecret').value || '',
+                encryptKey: document.getElementById('encryptKey').value || '',
+                verificationToken: document.getElementById('vt').value || ''
+            };
+            
+            if (!config.appId.trim() || !config.appSecret.trim()) {
+                showToast('AppId 和 AppSecret 不能为空', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('{{ApiPrefix}}/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Feishu-Admin-Password': pwd
+                    },
+                    body: JSON.stringify(config)
+                });
+                
+                if (response.ok) {
+                    showToast('飞书配置保存成功');
+                    updateOutput('✅ 飞书应用配置已更新\n\n配置详情:\nApp ID: ' + config.appId + '\nApp Secret: ********\nEncrypt Key: ' + (config.encryptKey || '(未设置)') + '\nVerification Token: ' + (config.verificationToken || '(未设置)'));
+                } else if (response.status === 401) {
+                    showToast('管理口令验证失败', 'error');
+                    updateOutput('❌ 认证失败: 管理口令不正确');
+                } else {
+                    showToast('保存失败，请重试', 'error');
+                    updateOutput('❌ 保存失败: HTTP ' + response.status);
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+                updateOutput('❌ 网络错误: ' + error.message);
+            }
+        }
+        
+        async function checkCfg() {
+            try {
+                const response = await fetch('{{ApiPrefix}}/config/status');
+                const config = await response.json();
+                
+                if (config.configured) {
+                    showToast('配置检查完成');
+                    updateOutput('✅ 飞书应用配置已就绪\n\n配置状态: 已配置\nApp ID: 已设置\nApp Secret: 已设置');
+                } else {
+                    showToast('配置尚未完成', 'error');
+                    updateOutput('⚠️ 飞书应用配置未完成\n\n请设置 App ID 和 App Secret');
+                }
+            } catch (error) {
+                showToast('检查配置失败: ' + error.message, 'error');
+                updateOutput('❌ 检查配置失败: ' + error.message);
+            }
+        }
+        
+        async function reg() {
+            const pwd = currentPassword || document.getElementById('pwd').value;
+            const code = document.getElementById('approvalCode').value;
+            const displayName = document.getElementById('displayName').value;
+            
+            if (!pwd || !pwd.trim()) {
+                showToast('请先验证管理口令', 'error');
+                return;
+            }
+            
+            if (!code || !code.trim()) {
+                showToast('请输入审批代码', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('{{ApiPrefix}}/approvals', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Feishu-Admin-Password': pwd
+                    },
+                    body: JSON.stringify({
+                        approvalCode: code,
+                        displayName: displayName || code,
+                        description: ''
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    showToast('审批登记成功');
+                    updateOutput('✅ 审批流程登记成功\n\n审批代码: ' + code + '\n显示名称: ' + (displayName || code) + '\n登记ID: ' + result.data);
+                } else if (response.status === 401) {
+                    showToast('管理口令验证失败', 'error');
+                    updateOutput('❌ 认证失败: 管理口令不正确');
+                } else {
+                    const errorText = await response.text();
+                    showToast('登记失败: ' + errorText, 'error');
+                    updateOutput('❌ 登记失败: ' + errorText);
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+                updateOutput('❌ 网络错误: ' + error.message);
+            }
+        }
+        
+        async function loadRegistrations() {
+            try {
+                const response = await fetch('{{ApiPrefix}}/approvals');
+                const approvals = await response.json();
+                
+                if (approvals && approvals.length > 0) {
+                    const list = approvals.map(a => `• ${a.displayName} (${a.approvalCode})`).join('\n');
+                    updateOutput('📋 已登记的审批流程:\n\n' + list);
+                } else {
+                    updateOutput('📋 暂无已登记的审批流程\n\n请先登记审批代码');
+                }
+            } catch (error) {
+                showToast('加载失败: ' + error.message, 'error');
+                updateOutput('❌ 加载失败: ' + error.message);
+            }
+        }
+        
+        async function gen() {
+            const code = document.getElementById('code').value;
+            const className = document.getElementById('className').value;
+            
+            if (!code || !code.trim()) {
+                showToast('请输入审批代码', 'error');
+                return;
+            }
+            
+            try {
+                let url = '{{ApiPrefix}}/codegen/' + encodeURIComponent(code);
+                if (className && className.trim()) {
+                    url += '?className=' + encodeURIComponent(className.trim());
+                }
+                const response = await fetch(url);
+                
+                if (response.ok) {
+                    const generatedCode = await response.text();
+                    showToast('代码生成成功');
+                    updateOutput('🚀 生成的 C# 实体类代码:\n\n' + generatedCode);
+                } else if (response.status === 404) {
+                    showToast('审批代码未找到', 'error');
+                    updateOutput('❌ 审批代码未找到: ' + code + '\n\n请确保:\n1. 审批代码正确\n2. 已在飞书中创建对应审批\n3. 飞书应用配置正确');
+                } else {
+                    const errorText = await response.text();
+                    showToast('生成失败: ' + errorText, 'error');
+                    updateOutput('❌ 生成失败: ' + errorText);
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+                updateOutput('❌ 网络错误: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

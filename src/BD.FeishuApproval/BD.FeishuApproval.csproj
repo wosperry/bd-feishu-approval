@@ -1,0 +1,77 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<RootNamespace>BD.FeishuApproval</RootNamespace>
+		<LangVersion>12.0</LangVersion>
+		<Nullable>disable</Nullable>
+		
+		<!-- NuGet Package Configuration -->
+		<PackageId>BD.FeishuSDK.Approval</PackageId>
+		<Title>飞书审批工作流 SDK</Title>
+		<PackageVersion>1.0.0-pre</PackageVersion>
+		<Authors>BD Team</Authors>
+		<Company>BD</Company>
+		<Description>企业级飞书审批工作流 SDK，提供完整的审批流程管理、可视化界面、智能代码生成、批量操作、系统监控等功能。支持 MySQL、SQL Server、PostgreSQL、SQLite 多种数据库。</Description>
+		<Summary>企业级飞书审批工作流 SDK - 一行代码集成飞书审批功能</Summary>
+		<PackageTags>feishu;lark;approval;workflow;sdk;csharp;dotnet</PackageTags>
+		<PackageProjectUrl>https://github.com/wosperry/bd-feishu-sdk</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/wosperry/bd-feishu-sdk</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageReleaseNotes>
+			v1.0.0:
+			✅ 智能代码生成 - 根据审批表单自动生成 C# 实体类
+			✅ 多数据库支持 - MySQL/SQL Server/PostgreSQL/SQLite，自动检测数据库类型
+			✅ 系统健康检查 - 实时监控数据库、飞书API、配置状态
+			✅ 批量操作功能 - 批量创建、查询、撤销审批实例
+			✅ 可视化管理界面 - 美观的 Web 管理控制台
+			✅ 完整的日志监控 - 请求/响应/管理操作全链路日志
+		</PackageReleaseNotes>
+		
+		<!-- Build Configuration -->
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);CS1591</NoWarn>
+		
+		<!-- SourceLink Configuration -->
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<DebugType>portable</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+		
+		<!-- Package Content -->
+		<PackageIcon>icon.png</PackageIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\BD.FeishuApproval.Abstractions\BD.FeishuApproval.Abstractions.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="SqlSugarCore" Version="5.1.4.200" />
+	  <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
+	  <PackageReference Include="Microsoft.Extensions.Options" Version="6.0.0" />
+	  <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<!-- Include README file in package -->
+	<ItemGroup>
+	  <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+	  <None Include="..\..\assets\icon.png" Pack="true" PackagePath="\" />
+	</ItemGroup>
+
+	<!-- Embed Dashboard Template Resources -->
+	<ItemGroup>
+	  <EmbeddedResource Include="Dashboard\Templates\Resources\**\*.html" />
+	  <EmbeddedResource Include="Dashboard\Templates\Resources\**\*.css" />
+	  <EmbeddedResource Include="Dashboard\Templates\Resources\**\*.js" />
+	</ItemGroup>
+
+</Project>
