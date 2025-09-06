@@ -12,7 +12,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddFeishuApproval(connectionString, "sqlite");
 
 // 手动注册Demo审批处理器（临时解决方案）
-builder.Services.AddApprovalHandler<DemoApprovalHandler, DemoApprovalRequest>();
+builder.Services.AddApprovalHandler<DemoApprovalHandler, DemoApprovalDto>();
 
 // 添加新的审批服务架构
 builder.Services

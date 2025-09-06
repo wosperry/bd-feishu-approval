@@ -12,7 +12,7 @@ namespace FeishuApproval.SampleWeb.FeishuApprovals.DemoApproval;
 /// - 开发者不需要修改此类，除非审批流定义发生变化
 /// </summary>
 [ApprovalCode("6A109ECD-3578-4243-93F9-DBDCF89515AF")]
-public class DemoApprovalRequest : FeishuApprovalRequestBase
+public class DemoApprovalDto : FeishuApprovalRequestBase
 {
     /// <summary>
     /// 姓名 (飞书表单: input)

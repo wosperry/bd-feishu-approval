@@ -15,7 +15,7 @@ namespace FeishuApproval.SampleWeb.FeishuApprovals.DemoApproval;
 public class DemoApprovalHandler(
     IFeishuApprovalInstanceService instanceService,
     ILogger<DemoApprovalHandler> logger)
-    : ApprovalHandlerBase<DemoApprovalRequest>(instanceService, logger)
+    : ApprovalHandlerBase<DemoApprovalDto>(instanceService, logger)
 {
     #region ===== 必须实现的回调处理方法 =====
 
@@ -34,7 +34,7 @@ public class DemoApprovalHandler(
     /// await _notificationService.SendApprovedNotificationAsync(context.Data);
     /// await _auditService.LogAsync("ApprovalApproved", context.Data);
     /// </summary>
-    public override Task HandleApprovalApprovedAsync(ApprovalContext<DemoApprovalRequest> context)
+    public override Task HandleApprovalApprovedAsync(ApprovalContext<DemoApprovalDto> context)
     {
         throw new NotImplementedException("请实现审批通过后的业务逻辑处理");
     }
@@ -54,7 +54,7 @@ public class DemoApprovalHandler(
     /// await _businessService.RollbackAsync(context.Data);
     /// await _notificationService.SendRejectedNotificationAsync(context.Data, context.Callback.Comment);
     /// </summary>
-    public override Task HandleApprovalRejectedAsync(ApprovalContext<DemoApprovalRequest> context)
+    public override Task HandleApprovalRejectedAsync(ApprovalContext<DemoApprovalDto> context)
     {
         throw new NotImplementedException("请实现审批拒绝后的业务逻辑处理");
     }
@@ -74,7 +74,7 @@ public class DemoApprovalHandler(
     /// await _resourceService.ReleasePreAllocatedAsync(context.Data);
     /// await _notificationService.SendCancelledNotificationAsync(context.Data);
     /// </summary>
-    public override Task HandleApprovalCancelledAsync(ApprovalContext<DemoApprovalRequest> context)
+    public override Task HandleApprovalCancelledAsync(ApprovalContext<DemoApprovalDto> context)
     {
         throw new NotImplementedException("请实现审批撤回后的业务逻辑处理");
     }
@@ -94,7 +94,7 @@ public class DemoApprovalHandler(
     /// await _alertService.SendUnknownStatusAlertAsync(context);
     /// await _failedJobService.AddAsync(context, "Unknown approval status received");
     /// </summary>
-    public override Task HandleUnknownStatusAsync(ApprovalContext<DemoApprovalRequest> context)
+    public override Task HandleUnknownStatusAsync(ApprovalContext<DemoApprovalDto> context)
     {
         throw new NotImplementedException("请实现未知状态的处理逻辑");
     }
@@ -114,7 +114,7 @@ public class DemoApprovalHandler(
     /// await _alertService.SendExceptionAlertAsync(context, exception);
     /// await _failedJobService.AddAsync(context, exception);
     /// </summary>
-    public override Task HandleBusinessExceptionAsync(ApprovalContext<DemoApprovalRequest> context, Exception exception)
+    public override Task HandleBusinessExceptionAsync(ApprovalContext<DemoApprovalDto> context, Exception exception)
     {
         throw new NotImplementedException("请实现业务异常处理逻辑");
     }
@@ -139,7 +139,7 @@ public class DemoApprovalHandler(
     /// if (await _userService.IsBlacklistedAsync(request.UserId))
     ///     throw new InvalidOperationException("用户已被列入黑名单");
     /// </summary>
-    protected override async Task ValidateApprovalRequestAsync(DemoApprovalRequest request)
+    protected override async Task ValidateApprovalRequestAsync(DemoApprovalDto request)
     {
         // 在这里实现自定义的验证逻辑
         // 如果验证失败，抛出相应的异常
@@ -161,7 +161,7 @@ public class DemoApprovalHandler(
     /// await _notificationService.NotifyApproversAsync(request);
     /// request.PrepareAdditionalData();
     /// </summary>
-    protected override async Task PreProcessApprovalAsync(DemoApprovalRequest request)
+    protected override async Task PreProcessApprovalAsync(DemoApprovalDto request)
     {
         // 在这里实现创建审批前的预处理逻辑
         await Task.CompletedTask;
@@ -182,7 +182,7 @@ public class DemoApprovalHandler(
     /// await _notificationService.SendSubmissionSuccessAsync(request, result);
     /// await _auditService.LogCreationAsync(request, result);
     /// </summary>
-    protected override async Task PostProcessApprovalAsync(DemoApprovalRequest request, BD.FeishuApproval.Shared.Dtos.Instances.CreateInstanceResult result)
+    protected override async Task PostProcessApprovalAsync(DemoApprovalDto request, BD.FeishuApproval.Shared.Dtos.Instances.CreateInstanceResult result)
     {
         // 在这里实现审批创建成功后的处理逻辑
         await Task.CompletedTask;
@@ -203,7 +203,7 @@ public class DemoApprovalHandler(
     /// await _notificationService.SendCreationFailedAsync(request, exception);
     /// _logger.LogError(exception, "审批创建失败: {Request}", JsonSerializer.Serialize(request));
     /// </summary>
-    protected override async Task HandleCreateFailureInternalAsync(DemoApprovalRequest request, Exception exception)
+    protected override async Task HandleCreateFailureInternalAsync(DemoApprovalDto request, Exception exception)
     {
         // 在这里实现审批创建失败时的处理逻辑
         await Task.CompletedTask;

@@ -43,7 +43,7 @@ public class DemoApprovalController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> CreateDemoApproval([FromBody] DemoApprovalRequest request)
+    public async Task<IActionResult> CreateDemoApproval([FromBody] DemoApprovalDto request)
     {
         try
         {
@@ -160,7 +160,7 @@ public class DemoApprovalController : ControllerBase
         try
         {
             // 创建测试数据
-            var testRequest = new DemoApprovalRequest
+            var testRequest = new DemoApprovalDto
             {
                 姓名 = "张三",
                 年龄_岁 = 25
