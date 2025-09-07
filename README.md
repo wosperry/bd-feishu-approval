@@ -579,8 +579,6 @@ GET /feishu/api/logs/manage     # 管理操作日志
 
 ### 贡献指南
 
-我们欢迎社区贡献！请查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详情。
-
 ### 问题和功能请求
 
 ### 文档资源
@@ -597,7 +595,7 @@ GET /feishu/api/logs/manage     # 管理操作日志
 
 <div align="center">
 
-**⭐ 如果这个项目对您有帮助，请给我们一个星标！**
+**⭐ 如果这个项目对您有帮助，请给我们一个Star！**
 
 [⭐ 在GitHub上给星](https://github.com/wosperry/bd-feishu-sdk)
 
