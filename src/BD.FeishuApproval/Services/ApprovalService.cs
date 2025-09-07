@@ -129,7 +129,7 @@ public class ApprovalService : IApprovalService
         
         if (string.IsNullOrEmpty(ApprovalCode))
         {
-            _logger.LogWarning("无法从回调事件中解析审批类型 - 实例: {InstanceCode}", callbackEvent.InstanceCode);
+            _logger.LogWarning("无法从回调事件中解析审批类型 - 实例: {InstanceCode}", callbackEvent.Event.ApprovalCode);
             throw new InvalidOperationException("无法确定审批类型，回调事件缺少必要信息");
         }
 
@@ -148,7 +148,7 @@ public class ApprovalService : IApprovalService
             throw new ArgumentNullException(nameof(callbackEvent));
 
         _logger.LogInformation("开始处理审批回调 - 类型: {ApprovalCode}, 实例: {InstanceCode}, 状态: {Status}", 
-            ApprovalCode, callbackEvent.InstanceCode, callbackEvent.Type);
+            ApprovalCode, callbackEvent.Event.ApprovalCode, callbackEvent.Type);
 
         // 通过Registry获取对应的Handler
         var handler = _handlerRegistry.GetHandler(ApprovalCode, _serviceProvider);
@@ -165,12 +165,12 @@ public class ApprovalService : IApprovalService
             await handler.HandleCallbackAsync(callbackEvent);
             
             _logger.LogInformation("审批回调处理完成 - 类型: {ApprovalCode}, 实例: {InstanceCode}", 
-                ApprovalCode, callbackEvent.InstanceCode);
+                ApprovalCode, callbackEvent.Event.ApprovalCode);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "处理审批回调失败 - 类型: {ApprovalCode}, 实例: {InstanceCode}", 
-                ApprovalCode, callbackEvent.InstanceCode);
+                ApprovalCode, callbackEvent.Event.ApprovalCode);
             throw;
         }
     }
@@ -210,9 +210,9 @@ public class ApprovalService : IApprovalService
     private string ExtractApprovalCodeFromCallback(FeishuCallbackEvent callbackEvent)
     {
         // 策略1: 尝试从ApprovalCode直接获取（如果回调事件包含这个字段）
-        if (!string.IsNullOrEmpty(callbackEvent.ApprovalCode))
+        if (!string.IsNullOrEmpty(callbackEvent.Event.ApprovalCode))
         {
-            return callbackEvent.ApprovalCode;
+            return callbackEvent.Event.ApprovalCode;
         }
 
         // 策略2: 从Form数据中解析（需要根据实际JSON结构调整）
@@ -226,7 +226,7 @@ public class ApprovalService : IApprovalService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "解析回调事件Form数据失败 - 实例: {InstanceCode}", callbackEvent.InstanceCode);
+                _logger.LogWarning(ex, "解析回调事件Form数据失败 - 实例: {InstanceCode}", callbackEvent.Event.ApprovalCode);
             }
         }
 

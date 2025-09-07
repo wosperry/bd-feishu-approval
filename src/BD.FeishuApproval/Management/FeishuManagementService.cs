@@ -3,8 +3,10 @@ using BD.FeishuApproval.Abstractions.Definitions;
 using BD.FeishuApproval.Abstractions.Health;
 using BD.FeishuApproval.Abstractions.Management;
 using BD.FeishuApproval.Abstractions.Persistence;
+using BD.FeishuApproval.Callbacks;
 using BD.FeishuApproval.Health;
 using BD.FeishuApproval.Shared.Dtos.Definitions;
+using BD.FeishuApproval.Shared.Events;
 using BD.FeishuApproval.Shared.Models;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -30,6 +32,7 @@ public class FeishuManagementService : IFeishuManagementService
     private readonly IFeishuApprovalSubscriptionService _subscriptionService;
     private readonly ITypeScriptCodeGenerator _typeScriptCodeGenerator;
     private readonly IFeishuHealthCheckService _healthService;
+    private readonly IFeishuCallbackService _callbackService;
     private readonly ILogger<FeishuManagementService> _logger;
 
     public FeishuManagementService(
@@ -38,6 +41,7 @@ public class FeishuManagementService : IFeishuManagementService
         IFeishuApprovalSubscriptionService subscriptionService,
         ITypeScriptCodeGenerator typeScriptCodeGenerator,
         IFeishuHealthCheckService healthService,
+        IFeishuCallbackService callbackService,
         ILogger<FeishuManagementService> logger)
     {
         _repository = repository;
@@ -45,6 +49,7 @@ public class FeishuManagementService : IFeishuManagementService
         _subscriptionService = subscriptionService;
         _typeScriptCodeGenerator = typeScriptCodeGenerator;
         _healthService = healthService;
+        _callbackService = callbackService;
         _logger = logger;
     }
 
@@ -457,210 +462,7 @@ public class FeishuManagementService : IFeishuManagementService
             return ManagementOperationResult.Failure("订阅失败", ex.Message);
         }
     }
-
-    #region 飞书请求处理（新增实现）
-    /// <summary>
-    /// 处理飞书URL验证/事件请求
-    /// </summary>
-    public async Task<FeishuRequestHandleResult> HandleFeishuRequestAsync(string requestBody)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(requestBody))
-            {
-                _logger.LogWarning("飞书请求体为空");
-                return new FeishuRequestHandleResult
-                {
-                    Success = false,
-                    ErrorMessage = "请求体不能为空"
-                };
-            }
-
-            // 从数据库获取飞书配置（FeishuAccessConfig表）
-            var configStatus = await GetConfigurationStatusAsync();
-            var feishuConfig = configStatus.FeishuConfig;
-            if (feishuConfig == null)
-            {
-                _logger.LogError("飞书配置未初始化（FeishuAccessConfig表中无数据）");
-                return new FeishuRequestHandleResult
-                {
-                    Success = false,
-                    ErrorMessage = "飞书配置未初始化"
-                };
-            }
-
-            // 检查是否为加密请求
-            if (requestBody.Contains("\"encrypt\":"))
-            {
-                return await HandleEncryptedRequest(requestBody, feishuConfig);
-            }
-            // 非加密请求处理
-            else
-            {
-                return await HandlePlainTextRequest(requestBody, feishuConfig);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "处理飞书请求出错，请求体：{RequestBody}", requestBody);
-            return new FeishuRequestHandleResult
-            {
-                Success = false,
-                ErrorMessage = $"处理请求时发生错误：{ex.Message}"
-            };
-        }
-    }
-
-    /// <summary>
-    /// 处理加密请求
-    /// </summary>
-    private async Task<FeishuRequestHandleResult> HandleEncryptedRequest(string requestBody, FeishuAccessConfig config)
-    {
-        try
-        {
-            var encryptedRequest = JsonConvert.DeserializeObject<EncryptedFeishuRequest>(requestBody);
-            if (encryptedRequest == null || string.IsNullOrWhiteSpace(encryptedRequest.Encrypt))
-            {
-                return new FeishuRequestHandleResult
-                {
-                    Success = false,
-                    ErrorMessage = "加密请求格式无效"
-                };
-            }
-
-            // 解密（使用FeishuAccessConfig中的EncryptKey）
-            string decryptedBody = DecryptFeishuData(encryptedRequest.Encrypt, config.EncryptKey);
-            if (string.IsNullOrWhiteSpace(decryptedBody))
-            {
-                return new FeishuRequestHandleResult
-                {
-                    Success = false,
-                    ErrorMessage = "请求解密失败"
-                };
-            }
-
-            // 解密后按明文请求处理
-            return await HandlePlainTextRequest(decryptedBody, config);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "处理飞书加密请求失败");
-            return new FeishuRequestHandleResult
-            {
-                Success = false,
-                ErrorMessage = $"加密请求处理失败：{ex.Message}"
-            };
-        }
-    }
-
-    /// <summary>
-    /// 处理明文请求（URL验证/事件推送）
-    /// </summary>
-    private async Task<FeishuRequestHandleResult> HandlePlainTextRequest(string requestBody, FeishuAccessConfig config)
-    {
-        try
-        {
-            var verificationRequest = JsonConvert.DeserializeObject<FeishuVerificationRequest>(requestBody);
-            if (verificationRequest == null)
-            {
-                return new FeishuRequestHandleResult
-                {
-                    Success = false,
-                    ErrorMessage = "请求格式无效"
-                };
-            }
-
-            // 验证Token（使用FeishuAccessConfig中的VerificationToken）
-            if (!string.Equals(verificationRequest.Token, config.VerificationToken, StringComparison.Ordinal))
-            {
-                _logger.LogWarning("飞书Token验证失败，收到：{ReceivedToken}，预期：{ExpectedToken}",
-                    verificationRequest.Token, config.VerificationToken);
-                return new FeishuRequestHandleResult
-                {
-                    Success = false,
-                    ErrorMessage = "Token验证失败"
-                };
-            }
-
-            // 处理URL验证
-            if (verificationRequest.Type == "url_verification")
-            {
-                _logger.LogInformation("飞书URL验证成功，Challenge：{Challenge}", verificationRequest.Challenge);
-                return new FeishuRequestHandleResult
-                {
-                    Success = true,
-                    Challenge = verificationRequest.Challenge
-                };
-            }
-
-            // 处理事件推送（可扩展）
-            _logger.LogInformation("收到飞书事件推送，类型：{Type}", verificationRequest.Type);
-            // TODO: 根据事件类型处理逻辑（如审批事件、消息事件等）
-            await SaveEventLogAsync(verificationRequest.Type, requestBody);
-
-            return new FeishuRequestHandleResult
-            {
-                Success = true,
-                EventResult = new { received = true, message = "事件已接收" }
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "处理飞书明文请求失败");
-            return new FeishuRequestHandleResult
-            {
-                Success = false,
-                ErrorMessage = $"明文请求处理失败：{ex.Message}"
-            };
-        }
-    }
-
-    ///// <summary>
-    ///// 飞书AES解密（AES-256-CBC）
-    ///// </summary>
-    //private string DecryptFeishuData(string encryptedData, string encryptKey)
-    //{
-    //    if (string.IsNullOrWhiteSpace(encryptedData) || string.IsNullOrWhiteSpace(encryptKey))
-    //        return null;
-
-    //    try
-    //    {
-    //        // 1. 密钥必须32字节（256位）
-    //        byte[] keyBytes = Encoding.UTF8.GetBytes(encryptKey);
-    //        if (keyBytes.Length != 32)
-    //        {
-    //            _logger.LogError("飞书EncryptKey长度错误（必须32字节），当前：{Length}", keyBytes.Length);
-    //            return null;
-    //        }
-
-    //        // 2. IV为密钥前16字节
-    //        byte[] ivBytes = new byte[16];
-    //        Array.Copy(keyBytes, 0, ivBytes, 0, 16);
-
-    //        // 3. 解密
-    //        using (var aes = Aes.Create())
-    //        {
-    //            aes.Key = keyBytes;
-    //            aes.IV = ivBytes;
-    //            aes.Mode = CipherMode.CBC;
-    //            aes.Padding = PaddingMode.PKCS7;
-
-    //            using (var decryptor = aes.CreateDecryptor(aes.Key, aes.IV))
-    //            using (var msDecrypt = new System.IO.MemoryStream(Convert.FromBase64String(encryptedData)))
-    //            using (var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read))
-    //            using (var srDecrypt = new System.IO.StreamReader(csDecrypt, Encoding.UTF8))
-    //            {
-    //                return srDecrypt.ReadToEnd();
-    //            }
-    //        }
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "飞书AES解密失败");
-    //        return null;
-    //    }
-    //}
-
+     
     /// <summary>
     /// 飞书AES解密（AES-256-CBC）
     /// </summary>
@@ -709,31 +511,7 @@ public class FeishuManagementService : IFeishuManagementService
             return null;
         }
     }
-
-    /// <summary>
-    /// 保存事件日志（可选）
-    /// </summary>
-    private async Task SaveEventLogAsync(string eventType, string eventData)
-    {
-        try
-        {
-            await _repository.SaveManageLogAsync(new FeishuManageLog
-            {
-                Operation = "receive_feishu_event",
-                Description = $"收到飞书事件：{eventType}",
-                Parameters = eventData.Length > 1000 ? eventData.Substring(0, 1000) : eventData,
-                Result = "Success",
-                ClientIP = "FeishuPlatform",
-                UserAgent = "FeishuWebhook"
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "保存飞书事件日志失败");
-        }
-    }
-    #endregion
-
+    
     #region 原有私有方法
     private async Task<bool> CheckAdminPasswordExistsAsync()
     {
@@ -1028,7 +806,7 @@ public class FeishuManagementService : IFeishuManagementService
     {
         await Task.CompletedTask;
         throw new NotImplementedException("尚未实现");
-    }
+    } 
     #endregion
 }
 

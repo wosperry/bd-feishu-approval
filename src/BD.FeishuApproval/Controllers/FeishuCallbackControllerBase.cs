@@ -1,9 +1,15 @@
+using BD.FeishuApproval.Abstractions.Management;
 using BD.FeishuApproval.Callbacks;
 using BD.FeishuApproval.Shared.Events;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace BD.FeishuApproval.Controllers;
@@ -11,343 +17,259 @@ namespace BD.FeishuApproval.Controllers;
 /// <summary>
 /// 飞书审批回调处理控制器基类
 /// 统一接收飞书审批状态变更回调，并分发到对应的处理器
-/// 用户可以继承此类并重写相关方法进行自定义处理
+/// 内置：读取请求体、解密、验签、challenge 响应
+/// 子类可以重写钩子方法以扩展逻辑
 /// </summary>
 [ApiController]
 public abstract class FeishuCallbackControllerBase : ControllerBase
 {
     protected readonly IFeishuCallbackService _callbackService;
+    protected readonly IFeishuManagementService _managementService;
     protected readonly ILogger _logger;
-
-    protected FeishuCallbackControllerBase(
-        IFeishuCallbackService callbackService,
-        ILogger logger)
+    // 配置System.Text.Json序列化选项
+    protected readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions
     {
-        _callbackService = callbackService;
-        _logger = logger;
+        PropertyNameCaseInsensitive = true, // 忽略属性名大小写
+        WriteIndented = true // 序列化时格式化输出（可选）
+    };
+
+    protected FeishuCallbackControllerBase(IServiceProvider provider)
+    {
+        _logger = provider.GetService<ILogger<FeishuCallbackControllerBase>>();
+        _managementService = provider.GetService<IFeishuManagementService>();
+        _callbackService = provider.GetService<IFeishuCallbackService>();
     }
 
     /// <summary>
-    /// 处理飞书审批状态变更回调
-    /// 子类可以重写此方法进行自定义处理
+    /// 飞书开放平台回调入口
     /// </summary>
-    /// <param name="callbackData">回调数据</param>
-    /// <returns>处理结果</returns>
     [HttpPost]
-    public virtual async Task<IActionResult> HandleApprovalCallback([FromBody] object callbackData)
+    public virtual async Task<IActionResult> HandleCallback()
     {
         try
         {
-            // 记录回调日志（可被子类重写）
-            await LogCallbackReceived(callbackData);
+            // 启用缓冲，保证后续能读取
+            Request.EnableBuffering();
 
-            // 解析回调数据（可被子类重写）
-            var callbackEvent = await ParseCallbackData(callbackData);
-            
-            if (callbackEvent == null)
+            if (!Request.Body.CanSeek)
+                return BadRequest("请求流不支持重置位置");
+
+            Request.Body.Position = 0;
+
+            // === 读取原始请求体 ===
+            string rawBody;
+            using (var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true))
             {
-                _logger.LogWarning("无法解析回调数据");
-                return await HandleParseFailure(callbackData);
+                rawBody = await reader.ReadToEndAsync();
+                Request.Body.Position = 0;
             }
 
-            // 验证回调数据（可被子类重写）
-            var validationResult = await ValidateCallback(callbackEvent);
-            if (!validationResult.IsValid)
+            _logger.LogInformation("收到飞书原始请求: {RawBody}", rawBody);
+
+            // === 获取配置 ===
+            var config = await _managementService.GetConfigurationStatusAsync(false);
+            if (config?.FeishuConfig == null)
             {
-                return await HandleValidationFailure(callbackEvent, validationResult.ErrorMessage);
+                _logger.LogError("飞书配置未找到");
+                return StatusCode(500, "配置错误");
             }
 
-            // 处理回调前的预处理（可被子类重写）
-            await PreProcessCallback(callbackEvent);
-
-            // 处理回调
-            var success = await _callbackService.HandleApprovalCallbackAsync(callbackEvent);
-
-            // 处理回调后的后处理（可被子类重写）
-            await PostProcessCallback(callbackEvent, success);
-
-            if (success)
+            // === 反序列化加密请求（替换Newtonsoft为System.Text.Json） ===
+            EncryptedRequest bodyObj;
+            try
             {
-                return await HandleCallbackSuccess(callbackEvent);
+                bodyObj = JsonSerializer.Deserialize<EncryptedRequest>(rawBody, _jsonOptions);
             }
-            else
+            catch (JsonException ex)
             {
-                return await HandleCallbackFailure(callbackEvent);
+                _logger.LogError(ex, "JSON反序列化失败，原始内容: {RawBody}", rawBody);
+                return BadRequest("请求格式错误");
             }
+
+            if (bodyObj == null || string.IsNullOrEmpty(bodyObj.Encrypt))
+            {
+                _logger.LogError("加密数据为空，原始内容: {RawBody}", rawBody);
+                return BadRequest("加密数据缺失");
+            }
+
+            // === 解密 ===
+            string decryptedData;
+            try
+            {
+                decryptedData = _managementService.DecryptFeishuData(
+                    bodyObj.Encrypt,
+                    config.FeishuConfig.EncryptKey
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "解密失败，加密内容: {EncryptData}", bodyObj.Encrypt);
+                return BadRequest("解密失败");
+            }
+
+            if (string.IsNullOrEmpty(decryptedData))
+            {
+                _logger.LogError("解密后数据为空，加密内容: {EncryptData}", bodyObj.Encrypt);
+                return BadRequest("解密失败");
+            }
+
+            // === 解析解密后JSON（替换JObject为JsonNode） ===
+            JsonNode? jsonData;
+            try
+            {
+                jsonData = JsonNode.Parse(decryptedData);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "解密后JSON解析失败，解密内容: {DecryptedData}", decryptedData);
+                return BadRequest("数据格式错误");
+            }
+
+            if (jsonData == null)
+            {
+                _logger.LogError("解密后JSON为空，解密内容: {DecryptedData}", decryptedData);
+                return BadRequest("数据格式错误");
+            }
+
+            // === 验签 ===
+            bool isSignatureValid = VerifySignature(rawBody, config.FeishuConfig.EncryptKey);
+            if (!isSignatureValid)
+            {
+                _logger.LogWarning("签名验证失败，原始内容: {RawBody}", rawBody);
+
+                // ⚠️ 配置 URL 验证时，即使签名失败也要返回 challenge
+                if (jsonData["challenge"] != null)
+                {
+                    return Ok(new { result = "failed", challenge = jsonData["challenge"]?.GetValue<string>() });
+                }
+
+                return BadRequest("签名验证失败");
+            }
+
+            // === URL 验证 ===
+            if (jsonData["challenge"] != null)
+            {
+                _logger.LogInformation("飞书URL验证通过，challenge: {Challenge}", jsonData["challenge"]);
+                return Ok(new { result = "success", challenge = jsonData["challenge"]?.GetValue<string>() });
+            }
+
+            // === 事件回调 ===
+            if (jsonData["event"] != null)
+            {
+                var callbackEvent = await ParseCallbackData(decryptedData);
+                if (callbackEvent == null)
+                {
+                    return await HandleParseFailure(jsonData);
+                }
+
+                var validationResult = await ValidateCallback(callbackEvent);
+                if (!validationResult.IsValid)
+                {
+                    return await HandleValidationFailure(callbackEvent, validationResult.ErrorMessage);
+                }
+
+                await PreProcessCallback(callbackEvent);
+
+                var success = await _callbackService.HandleApprovalCallbackAsync(callbackEvent);
+
+                await PostProcessCallback(callbackEvent, success);
+
+                return success
+                    ? await HandleCallbackSuccess(callbackEvent)
+                    : await HandleCallbackFailure(callbackEvent);
+            }
+
+            return Ok();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理飞书审批回调失败");
-            return await HandleException(ex, callbackData);
+            _logger.LogError(ex, "处理飞书回调时发生未预期错误");
+            return await HandleException(ex, null);
         }
     }
 
-    /// <summary>
-    /// 飞书回调验证端点（用于配置回调URL时的验证）
-    /// 子类可以重写此方法进行自定义验证逻辑
-    /// </summary>
-    [HttpPost("verify")]
-    public virtual async Task<IActionResult> VerifyCallback([FromBody] CallbackVerificationRequest request)
+    #region 可重写的钩子
+
+    protected virtual async Task<FeishuCallbackEvent?> ParseCallbackData(string decryptedJson)
     {
         try
         {
-            _logger.LogInformation("收到飞书回调验证请求: {Challenge}", request?.Challenge);
-            
-            // 验证请求（可被子类重写）
-            var validationResult = await ValidateVerificationRequest(request);
-            if (!validationResult.IsValid)
-            {
-                return BadRequest(validationResult.ErrorMessage);
-            }
-
-            // 处理验证逻辑（可被子类重写）
-            var response = await ProcessVerificationRequest(request);
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "处理回调验证失败");
-            return await HandleVerificationException(ex, request);
-        }
-    }
-
-    #region 可重写的钩子方法
-
-    /// <summary>
-    /// 记录回调接收日志（子类可重写）
-    /// </summary>
-    protected virtual async Task LogCallbackReceived(object callbackData)
-    {
-        _logger.LogInformation("收到飞书审批回调: {CallbackData}", callbackData);
-        await Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// 解析回调数据（子类可重写）
-    /// </summary>
-    protected virtual async Task<FeishuCallbackEvent?> ParseCallbackData(object callbackData)
-    {
-        try
-        {
-            if (callbackData == null)
-            {
-                _logger.LogWarning("回调数据为空");
-                return null;
-            }
-
-            var callbackJson = JsonSerializer.Serialize(callbackData);
-            _logger.LogDebug("解析回调数据: {CallbackJson}", callbackJson);
-            
-            var callbackEvent = JsonSerializer.Deserialize<FeishuCallbackEvent>(callbackJson);
-            
-            if (callbackEvent == null)
-            {
-                _logger.LogWarning("反序列化回调数据失败，结果为null");
-                return null;
-            }
-
-            // 验证必要字段
-            if (string.IsNullOrEmpty(callbackEvent.InstanceCode))
-            {
-                _logger.LogWarning("回调数据缺少实例代码");
-                return null;
-            }
-
-            if (string.IsNullOrEmpty(callbackEvent.EventId))
-            {
-                _logger.LogWarning("回调数据缺少事件ID");
-                return null;
-            }
-
-            _logger.LogInformation("成功解析回调数据 - 实例: {InstanceCode}, 事件ID: {EventId}, 类型: {Type}", 
-                callbackEvent.InstanceCode, callbackEvent.EventId, callbackEvent.Type);
-
+            // 替换Newtonsoft反序列化为System.Text.Json
+            var callbackEvent = JsonSerializer.Deserialize<FeishuCallbackEvent>(decryptedJson, _jsonOptions);
             return await Task.FromResult(callbackEvent);
         }
-        catch (JsonException ex)
-        {
-            _logger.LogError(ex, "JSON解析回调数据失败: {CallbackData}", callbackData);
-            return null;
-        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "解析回调数据失败: {CallbackData}", callbackData);
+            _logger.LogError(ex, "解析回调数据失败: {Json}", decryptedJson);
             return null;
         }
     }
 
-    /// <summary>
-    /// 验证回调数据（子类可重写）
-    /// </summary>
     protected virtual async Task<ValidationResult> ValidateCallback(FeishuCallbackEvent callbackEvent)
     {
-        if (callbackEvent == null)
-        {
-            return new ValidationResult { IsValid = false, ErrorMessage = "回调事件数据为空" };
-        }
-
-        if (string.IsNullOrEmpty(callbackEvent.InstanceCode))
-        {
-            return new ValidationResult { IsValid = false, ErrorMessage = "回调数据缺少实例代码" };
-        }
-
-        if (string.IsNullOrEmpty(callbackEvent.EventId))
-        {
-            return new ValidationResult { IsValid = false, ErrorMessage = "回调数据缺少事件ID" };
-        }
-
-        if (string.IsNullOrEmpty(callbackEvent.EventType))
-        {
-            return new ValidationResult { IsValid = false, ErrorMessage = "回调数据缺少事件类型" };
-        }
-
-        // 验证事件类型是否为审批相关事件
-        if (!callbackEvent.EventType.Contains("approval", StringComparison.OrdinalIgnoreCase))
-        {
-            _logger.LogWarning("收到非审批相关事件: {EventType}", callbackEvent.EventType);
-            return new ValidationResult { IsValid = false, ErrorMessage = "事件类型不是审批相关事件" };
-        }
-
-        // 验证时间戳（如果事件时间太旧，可能是重放攻击）
-        if (callbackEvent.EventTime > 0)
-        {
-            var eventTime = DateTimeOffset.FromUnixTimeSeconds(callbackEvent.EventTime);
-            var now = DateTimeOffset.UtcNow;
-            var timeDiff = now - eventTime;
-            
-            // 如果事件时间超过1小时，认为可能是重放攻击
-            if (timeDiff.TotalHours > 1)
-            {
-                _logger.LogWarning("收到过期事件 - 事件时间: {EventTime}, 当前时间: {Now}, 时间差: {TimeDiff}", 
-                    eventTime, now, timeDiff);
-                return new ValidationResult { IsValid = false, ErrorMessage = "事件时间过期" };
-            }
-        }
-        
         return await Task.FromResult(new ValidationResult { IsValid = true });
     }
 
-    /// <summary>
-    /// 验证验证请求（子类可重写）
-    /// </summary>
-    protected virtual async Task<ValidationResult> ValidateVerificationRequest(CallbackVerificationRequest? request)
-    {
-        if (request?.Challenge == null)
-        {
-            return new ValidationResult { IsValid = false, ErrorMessage = "缺少Challenge码" };
-        }
-        
-        return await Task.FromResult(new ValidationResult { IsValid = true });
-    }
-
-    /// <summary>
-    /// 处理验证请求（子类可重写）
-    /// </summary>
-    protected virtual async Task<object> ProcessVerificationRequest(CallbackVerificationRequest request)
-    {
-        return await Task.FromResult(new { challenge = request.Challenge });
-    }
-
-    /// <summary>
-    /// 回调前预处理（子类可重写）
-    /// </summary>
     protected virtual async Task PreProcessCallback(FeishuCallbackEvent callbackEvent)
     {
         await Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 回调后后处理（子类可重写）
-    /// </summary>
     protected virtual async Task PostProcessCallback(FeishuCallbackEvent callbackEvent, bool success)
     {
         await Task.CompletedTask;
     }
 
-    /// <summary>
-    /// 处理解析失败（子类可重写）
-    /// </summary>
     protected virtual async Task<IActionResult> HandleParseFailure(object callbackData)
     {
         return await Task.FromResult(BadRequest("无法解析回调数据"));
     }
 
-    /// <summary>
-    /// 处理验证失败（子类可重写）
-    /// </summary>
     protected virtual async Task<IActionResult> HandleValidationFailure(FeishuCallbackEvent callbackEvent, string errorMessage)
     {
         return await Task.FromResult(BadRequest(errorMessage));
     }
 
-    /// <summary>
-    /// 处理回调成功（子类可重写）
-    /// </summary>
     protected virtual async Task<IActionResult> HandleCallbackSuccess(FeishuCallbackEvent callbackEvent)
     {
         return await Task.FromResult(Ok(new { success = true, message = "回调处理成功" }));
     }
 
-    /// <summary>
-    /// 处理回调失败（子类可重写）
-    /// </summary>
     protected virtual async Task<IActionResult> HandleCallbackFailure(FeishuCallbackEvent callbackEvent)
     {
         return await Task.FromResult(BadRequest(new { success = false, message = "回调处理失败" }));
     }
 
-    /// <summary>
-    /// 处理异常（子类可重写）
-    /// </summary>
     protected virtual async Task<IActionResult> HandleException(Exception ex, object callbackData)
     {
         return await Task.FromResult(StatusCode(500, new { success = false, message = "回调处理失败", error = ex.Message }));
     }
 
-    /// <summary>
-    /// 处理验证异常（子类可重写）
-    /// </summary>
-    protected virtual async Task<IActionResult> HandleVerificationException(Exception ex, CallbackVerificationRequest? request)
+    #endregion
+
+    #region 内部模型
+
+    public class EncryptedRequest
     {
-        return await Task.FromResult(StatusCode(500, new { success = false, message = "回调验证失败", error = ex.Message }));
+        // 注意：如果JSON中的键名与属性名不同，需要添加[JsonPropertyName]特性
+        // 例如：[JsonPropertyName("encrypt")]
+        public string Encrypt { get; set; }
+    }
+
+    public class ValidationResult
+    {
+        public bool IsValid { get; set; }
+        public string? ErrorMessage { get; set; }
     }
 
     #endregion
-}
-
-/// <summary>
-/// 回调验证请求模型
-/// </summary>
-public class CallbackVerificationRequest
-{
-    /// <summary>
-    /// 挑战码
-    /// </summary>
-    public string? Challenge { get; set; }
 
     /// <summary>
-    /// 令牌
+    /// 验证请求签名（可被子类重写）
     /// </summary>
-    public string? Token { get; set; }
-
-    /// <summary>
-    /// 类型
-    /// </summary>
-    public string? Type { get; set; }
-}
-
-/// <summary>
-/// 验证结果
-/// </summary>
-public class ValidationResult
-{
-    /// <summary>
-    /// 是否验证通过
-    /// </summary>
-    public bool IsValid { get; set; }
-
-    /// <summary>
-    /// 错误消息
-    /// </summary>
-    public string? ErrorMessage { get; set; }
+    protected virtual bool VerifySignature(string requestBody, string encryptKey)
+    {
+        // 默认空实现：子类可重写
+        return true;
+    }
 }

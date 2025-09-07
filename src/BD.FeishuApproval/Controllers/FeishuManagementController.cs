@@ -292,6 +292,7 @@ public class FeishuManagementController : ControllerBase
     {
         public string Encrypt { get; set; }
     }
+
     /// <summary>
     /// 飞书开放平台回调接口
     /// 处理URL验证和事件推送
@@ -301,10 +302,9 @@ public class FeishuManagementController : ControllerBase
     {
         try
         {
-            // 关键：启用缓冲并确保流可 Seek
+            // 启用缓冲，保证后续能再次读取
             Request.EnableBuffering();
 
-            // 必须检查流是否可 Seek（某些环境下可能不支持）
             if (!Request.Body.CanSeek)
             {
                 return BadRequest("请求流不支持重置位置");
@@ -313,75 +313,135 @@ public class FeishuManagementController : ControllerBase
             // 重置流位置到起始点
             Request.Body.Position = 0;
 
-            // 使用非托管方式读取，避免编码问题
-            using (var ms = new MemoryStream())
+            // === 读取请求体（一次即可）===
+            string rawBody;
+            using (var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true))
             {
-                // 复制到内存流（最可靠的方式）
-                await Request.Body.CopyToAsync(ms);
-                byte[] rawBytes = ms.ToArray();
+                rawBody = await reader.ReadToEndAsync();
+                Request.Body.Position = 0; // 重置流，保证后续中间件可读
+            }
 
-                // 转换为字符串（根据实际编码调整）
-                string rawBody = Encoding.UTF8.GetString(rawBytes);
+            _logger.LogInformation("request body : {RawBody}", rawBody);
 
-                // 重置流位置，供后续中间件使用
-                Request.Body.Position = 0;
+            // === 获取配置 ===
+            var config = await _managementService.GetConfigurationStatusAsync(false);
+            if (config?.FeishuConfig == null)
+            {
+                _logger.LogError("飞书配置未找到");
+                return StatusCode(500, "配置错误");
+            }
 
-                using (var reader = new System.IO.StreamReader(Request.Body))
-                {
-                    rawBody = await reader.ReadToEndAsync();
-                    _logger.LogInformation($"request body : {rawBody}");
-                }
+            // === 反序列化加密请求 ===
+            EncryptedRequest bodyObj;
+            try
+            {
+                bodyObj = JsonConvert.DeserializeObject<EncryptedRequest>(rawBody);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "JSON反序列化失败，原始内容: {RawBody}", rawBody);
+                return BadRequest("请求格式错误");
+            }
 
-                var config = await _managementService.GetConfigurationStatusAsync(false);
+            if (bodyObj == null || string.IsNullOrEmpty(bodyObj.Encrypt))
+            {
+                _logger.LogError("加密数据为空，原始内容: {RawBody}", rawBody);
+                return BadRequest("加密数据缺失");
+            }
 
-                var bodyObj = JsonConvert.DeserializeObject<EncryptedRequest>(rawBody);
+            // === 解密数据 ===
+            string decryptedData;
+            try
+            {
+                decryptedData = _managementService.DecryptFeishuData(
+                    bodyObj.Encrypt,
+                    config.FeishuConfig.EncryptKey
+                );
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "解密失败，加密内容: {EncryptData}", bodyObj.Encrypt);
+                return BadRequest("解密失败");
+            }
 
-                // 解密数据
-                string decryptedData = _managementService.DecryptFeishuData(bodyObj.Encrypt, config.FeishuConfig.EncryptKey);
-                if (string.IsNullOrEmpty(decryptedData))
-                {
-                    return BadRequest("解密失败");
-                }
-                // 解析解密后的数据
-                var jsonData = JObject.Parse(decryptedData);
+            if (string.IsNullOrEmpty(decryptedData))
+            {
+                _logger.LogError("解密后数据为空，加密内容: {EncryptData}", bodyObj.Encrypt);
+                return BadRequest("解密失败");
+            }
 
+            JObject jsonData;
+            try
+            {
+                jsonData = JObject.Parse(decryptedData);
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "解密后JSON解析失败，解密内容: {DecryptedData}", decryptedData);
+                return BadRequest("数据格式错误");
+            }
 
-                // 验证签名
-                bool isSignatureValid = VerifySignature(rawBody, config.FeishuConfig.EncryptKey);
-                if (!isSignatureValid)
-                {
-                    return Ok(new { result = "failed", challenge = jsonData["challenge"].ToString() });
-                }
+            // === 验签 ===
+            bool isSignatureValid = VerifySignature(rawBody, config.FeishuConfig.EncryptKey);
+            if (!isSignatureValid)
+            {
+                _logger.LogWarning("签名验证失败，原始内容: {RawBody}", rawBody);
 
-                // 处理URL验证请求
+                // ⚠️ 配置 URL 验证时，即使签名失败也要返回 challenge，否则飞书不通过
                 if (jsonData.ContainsKey("challenge"))
                 {
-                    return Ok(new { result = "success", challenge = jsonData["challenge"].ToString() });
+                    return Ok(new { result = "failed", challenge = jsonData["challenge"]?.ToString() });
                 }
 
-                // 处理事件回调请求
-                if (jsonData.ContainsKey("event"))
-                {
-                    // TODO: 这里可以添加事件处理逻辑<{"uuid":"c37feb53316b5f2272434a56e6e20972","event":{"app_id":"cli_a824cc531af9901c","definition_code":"6A109ECD-3578-4243-93F9-DBDCF89515AF","definition_name":"Demo审批","end_time":1757196756,"event":"approve","instance_code":"690BDD40-478C-4D41-A40E-F05D5C4614E0","start_time":1757196751,"tenant_key":"164b0c92b90bd75f","type":"approval"},"token":"SPziuIXJboVIYmRqMwYTkYV3R5IHQaPu","ts":"1757196758.459022","type":"event_callback"}>
-                    var eventType = jsonData["event"]["type"].ToString();
-                    // 记录事件日志
-                    Console.WriteLine($"收到飞书事件: {eventType}, 数据: {decryptedData}");
-
-                    // 飞书要求回调接口返回200空响应
-                    return Ok();
-                }
+                return BadRequest("签名验证失败");
             }
+
+            // === 处理 URL 验证请求 ===
+            if (jsonData.ContainsKey("challenge"))
+            {
+                _logger.LogInformation("飞书URL验证通过，challenge: {Challenge}", jsonData["challenge"]);
+                return Ok(new { result = "success", challenge = jsonData["challenge"]?.ToString() });
+            }
+
+            // === 处理事件回调请求 ===
+            if (jsonData.ContainsKey("event"))
+            {
+                var eventType = jsonData["event"]?["type"]?.ToString() ?? "未知类型";
+                _logger.LogInformation("收到飞书事件: {EventType}, 数据: {DecryptedData}", eventType, decryptedData);
+
+                // TODO: 在这里处理你的业务逻辑
+                // 异步处理，避免阻塞飞书回调
+                _ = Task.Run(() => ProcessFeishuEvent(jsonData));
+
+                // 飞书要求返回200空响应
+                return Ok();
+            }
+
+            return Ok();
         }
         catch (Exception ex)
         {
-            // 详细日志记录
-            Console.WriteLine($"读取请求体失败: {ex.Message}");
-            // 记录错误日志
-            Console.WriteLine($"处理飞书回调出错: {ex.Message}, 堆栈: {ex.StackTrace}");
+            _logger.LogError(ex, "处理飞书回调时发生未预期错误");
             return StatusCode(500, "服务器内部错误");
         }
-        return Ok();
     }
+
+    /// <summary>
+    /// 单独的事件处理方法
+    /// </summary>
+    private async Task ProcessFeishuEvent(JObject eventData)
+    {
+        try
+        {
+            // 实际的事件处理逻辑（如保存数据库、调用其他服务等）
+            await Task.Delay(100); // 示例：模拟处理
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理飞书事件时出错，事件数据: {EventData}", eventData.ToString());
+        }
+    }
+
 
     /// <summary>
     /// 验证请求签名

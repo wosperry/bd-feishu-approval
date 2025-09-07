@@ -130,13 +130,6 @@ public interface IFeishuManagementService
     /// <returns>健康检查结果</returns>
     Task<FeishuHealthCheckResult> CheckSystemHealthAsync();
 
-
-    /// <summary>
-    /// 处理飞书URL验证/事件请求
-    /// </summary>
-    /// <param name="requestBody">请求体原始字符串</param>
-    /// <returns>处理结果（包含challenge或事件处理状态）</returns>
-    Task<FeishuRequestHandleResult> HandleFeishuRequestAsync(string requestBody);
     string DecryptFeishuData(string encryptedData, string encryptKey);
 
 

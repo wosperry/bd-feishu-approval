@@ -88,10 +88,11 @@ public abstract class ApprovalHandlerBase<TApprovalDto> : IApprovalHandler<TAppr
     {
         try
         {
-            var approvalData = ParseApprovalDataFromCallback(callbackEvent);
+            //TODO: form数据
+            var approvalData = string.Empty;// ParseApprovalDataFromCallback(callbackEvent);
             var context = new ApprovalContext<TApprovalDto>
             {
-                Data = approvalData,
+                Data = new TApprovalDto(),
                 Callback = callbackEvent
             };
 
@@ -99,7 +100,7 @@ public abstract class ApprovalHandlerBase<TApprovalDto> : IApprovalHandler<TAppr
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理审批回调失败 - 实例: {InstanceCode}", callbackEvent.InstanceCode);
+            _logger.LogError(ex, "处理审批回调失败 - 实例: {InstanceCode}", callbackEvent.Event.ApprovalCode);
             throw;
         }
     }
@@ -108,15 +109,15 @@ public abstract class ApprovalHandlerBase<TApprovalDto> : IApprovalHandler<TAppr
     {
         try
         {
-            switch (context.Callback.Type?.ToLower())
+            switch (context.Callback.Event.EventAction?.ToLower())
             {
-                case "approved":
+                case "approve":
                     await HandleApprovalApprovedAsync(context);
                     break;
                 case "rejected":
                     await HandleApprovalRejectedAsync(context);
                     break;
-                case "cancelled":
+                case "cancell":
                     await HandleApprovalCancelledAsync(context);
                     break;
                 default:
@@ -144,20 +145,5 @@ public abstract class ApprovalHandlerBase<TApprovalDto> : IApprovalHandler<TAppr
     protected virtual async Task PostProcessApprovalAsync(TApprovalDto request, CreateInstanceResult result) => await Task.CompletedTask;
     protected virtual async Task HandleCreateFailureInternalAsync(TApprovalDto request, Exception exception) => await Task.CompletedTask;
     #endregion
-
-    #region ===== 私有辅助方法 =====
-    private TApprovalDto ParseApprovalDataFromCallback(FeishuCallbackEvent callbackEvent)
-    {
-        if (string.IsNullOrEmpty(callbackEvent.Form)) return new TApprovalDto();
-        try
-        {
-            return JsonSerializer.Deserialize<TApprovalDto>(callbackEvent.Form) ?? new TApprovalDto();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "解析审批数据失败，使用默认实例");
-            return new TApprovalDto();
-        }
-    }
-    #endregion
+     
 }

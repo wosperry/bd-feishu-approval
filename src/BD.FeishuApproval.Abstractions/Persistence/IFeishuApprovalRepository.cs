@@ -223,6 +223,66 @@ public interface IFeishuApprovalRepository
     /// 清除OpenId缓存（通过UserId）
     /// </summary>
     Task ClearOpenIdCacheByUserIdAsync(string userId);
+
+    // 回调记录管理
+    /// <summary>
+    /// 保存回调记录
+    /// </summary>
+    /// <param name="record">回调记录对象</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>记录ID</returns>
+    Task<int> SaveCallbackRecordAsync(FeishuCallbackRecord record, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 更新回调记录状态
+    /// </summary>
+    /// <param name="recordId">记录ID</param>
+    /// <param name="status">状态</param>
+    /// <param name="message">消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>更新任务</returns>
+    Task UpdateCallbackRecordStatusAsync(int recordId, string status, string message = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 通过事件ID获取回调记录
+    /// </summary>
+    /// <param name="eventId">事件ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>回调记录</returns>
+    Task<FeishuCallbackRecord> GetCallbackRecordByEventIdAsync(string eventId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取待处理的回调记录
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>回调记录列表</returns>
+    Task<IEnumerable<FeishuCallbackRecord>> GetPendingCallbackRecordsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 查询回调记录
+    /// </summary>
+    /// <param name="page">页码</param>
+    /// <param name="pageSize">页大小</param>
+    /// <param name="status">状态过滤</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>回调记录列表</returns>
+    Task<IEnumerable<FeishuCallbackRecord>> QueryCallbackRecordsAsync(int page, int pageSize, string status = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 增加回调重试次数
+    /// </summary>
+    /// <param name="recordId">记录ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>更新任务</returns>
+    Task IncrementCallbackRetryCountAsync(int recordId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 通过实例代码获取审批类型
+    /// </summary>
+    /// <param name="instanceCode">实例代码</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>审批类型</returns>
+    Task<string> GetApprovalTypeByInstanceCodeAsync(string instanceCode, CancellationToken cancellationToken = default);
 }
 
 

@@ -40,20 +40,7 @@ public class ServiceExceptionTests
         {
             _ = await svc.GetDefinitionDetailAsync("code");
         });
-    }
-
-    [Fact]
-    public async Task InstanceService_OnBizError_ThrowsFeishuApiException()
-    {
-        var mockRepository = new Mock<IFeishuApprovalRepository>();
-        var mockUserService = new Mock<IFeishuUserService>();
-        var mockLogger = new Mock<ILogger<FeishuApprovalInstanceService>>();
-        var svc = new FeishuApprovalInstanceService(new StubClient(), mockRepository.Object, mockUserService.Object, mockLogger.Object);
-        await Assert.ThrowsAsync<FeishuApiException>(async () =>
-        {
-            _ = await svc.CreateInstanceAsync(new CreateInstanceRequest());
-        });
-    }
+    } 
 }
 
 

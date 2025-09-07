@@ -33,7 +33,8 @@ public class SqlSugarFeishuApprovalRepository : IFeishuApprovalRepository
             (Type: typeof(FeishuApprovalRegistration), TableName: "FeishuApprovalRegistration"),
             (Type: typeof(FeishuManageLog), TableName: "FeishuManageLog"),
             (Type: typeof(FeishuUser), TableName: "FeishuUser"),
-            (Type: typeof(FeishuOpenIdCache), TableName: "FeishuOpenIdCache")
+            (Type: typeof(FeishuOpenIdCache), TableName: "FeishuOpenIdCache"),
+            (Type: typeof(FeishuCallbackRecord), TableName: "FeishuCallbackRecord")
         };
 
         var codeFirst = _db.CodeFirst.SetStringDefaultLength(4000);
@@ -75,7 +76,8 @@ public class SqlSugarFeishuApprovalRepository : IFeishuApprovalRepository
             (Type: typeof(FeishuAdminAccessKey), TableName: "FeishuAdminAccessKey"),
             (Type: typeof(FeishuApprovalRegistration), TableName: "FeishuApprovalRegistration"),
             (Type: typeof(FeishuManageLog), TableName: "FeishuManageLog"),
-            (Type: typeof(FeishuUser), TableName: "FeishuUser")
+            (Type: typeof(FeishuUser), TableName: "FeishuUser"),
+            (Type: typeof(FeishuCallbackRecord), TableName: "FeishuCallbackRecord")
         };
 
         // Backup critical configuration data
@@ -448,6 +450,95 @@ public class SqlSugarFeishuApprovalRepository : IFeishuApprovalRepository
             };
             await _db.Insertable(newCache).ExecuteCommandAsync();
         }
+    }
+
+    // 回调记录管理方法
+    public async Task<int> SaveCallbackRecordAsync(FeishuCallbackRecord record, CancellationToken cancellationToken = default)
+    {
+        if (record == null) throw new ArgumentNullException(nameof(record));
+        record.CreatedAt = DateTime.UtcNow;
+        record.UpdatedAt = DateTime.UtcNow;
+        var id = await _db.Insertable(record).ExecuteReturnIdentityAsync();
+        return id;
+    }
+
+    public async Task UpdateCallbackRecordStatusAsync(int recordId, string status, string message = null, CancellationToken cancellationToken = default)
+    {
+        var updateData = new FeishuCallbackRecord 
+        { 
+            ProcessingStatus = status,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        if (!string.IsNullOrEmpty(message))
+        {
+            updateData.ProcessingMessage = message;
+        }
+
+        if (status == CallbackProcessingStatus.Processing && updateData.ProcessingStartedAt == null)
+        {
+            updateData.ProcessingStartedAt = DateTime.UtcNow;
+        }
+        else if (status == CallbackProcessingStatus.Completed || status == CallbackProcessingStatus.Failed)
+        {
+            updateData.ProcessingCompletedAt = DateTime.UtcNow;
+        }
+
+        await _db.Updateable(updateData)
+            .Where(r => r.Id == recordId)
+            .ExecuteCommandAsync();
+    }
+
+    public async Task<FeishuCallbackRecord> GetCallbackRecordByEventIdAsync(string eventId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Queryable<FeishuCallbackRecord>()
+            .Where(r => r.EventId == eventId)
+            .FirstAsync();
+    }
+
+    public async Task<IEnumerable<FeishuCallbackRecord>> GetPendingCallbackRecordsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _db.Queryable<FeishuCallbackRecord>()
+            .Where(r => r.ProcessingStatus == CallbackProcessingStatus.Pending)
+            .OrderBy(r => r.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<FeishuCallbackRecord>> QueryCallbackRecordsAsync(int page, int pageSize, string status = null, CancellationToken cancellationToken = default)
+    {
+        var query = _db.Queryable<FeishuCallbackRecord>();
+        
+        if (!string.IsNullOrEmpty(status))
+        {
+            query = query.Where(r => r.ProcessingStatus == status);
+        }
+
+        return await query
+            .OrderBy(r => r.CreatedAt, OrderByType.Desc)
+            .ToPageListAsync(page, pageSize);
+    }
+
+    public async Task IncrementCallbackRetryCountAsync(int recordId, CancellationToken cancellationToken = default)
+    {
+        await _db.Updateable<FeishuCallbackRecord>()
+            .SetColumns(r => new FeishuCallbackRecord 
+            { 
+                RetryCount = r.RetryCount + 1,
+                LastRetryAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            })
+            .Where(r => r.Id == recordId)
+            .ExecuteCommandAsync();
+    }
+
+    public async Task<string> GetApprovalTypeByInstanceCodeAsync(string instanceCode, CancellationToken cancellationToken = default)
+    {
+        var record = await _db.Queryable<FeishuCallbackRecord>()
+            .Where(r => r.InstanceCode == instanceCode)
+            .OrderBy(r => r.CreatedAt, OrderByType.Desc)
+            .FirstAsync();
+        
+        return record?.ApprovalCode ?? string.Empty;
     }
 }
 
