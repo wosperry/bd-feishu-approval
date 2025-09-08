@@ -2,22 +2,18 @@ using BD.FeishuApproval.Abstractions.Handlers;
 using BD.FeishuApproval.Abstractions.Instances;
 using BD.FeishuApproval.Handlers;
 using BD.FeishuApproval.Shared.Dtos.Instances;
-using FeishuApproval.SampleWeb.FeishuApprovals.DemoApproval;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Threading.Tasks;
 
-namespace FeishuApproval.SampleWeb.Handlers;
+namespace FeishuApproval.SampleWeb.FeishuApprovals.DemoApproval;
 
 /// <summary>
 /// Demo审批处理器
-/// 展示如何处理审批回调事件
+/// 这个例子项目里真正注入的Handler 另一个DemoApprovalHandler根本没有注入
 /// </summary>
-public class DemoApprovalHandler : ApprovalHandlerBase<DemoApprovalDto>
+public class DemoApprovalHandler_Implement : ApprovalHandlerBase<DemoApprovalDto>
 {
-    public DemoApprovalHandler(
+    public DemoApprovalHandler_Implement(
         IFeishuApprovalInstanceService instanceService,
-        ILogger<DemoApprovalHandler> logger)
+        ILogger<DemoApprovalHandler_Implement> logger)
         : base(instanceService, logger)
     {
     }
@@ -254,7 +250,7 @@ public class DemoApprovalHandler : ApprovalHandlerBase<DemoApprovalDto>
     /// 记录审批事件
     /// </summary>
     private async Task LogApprovalEventAsync(string eventType, DemoApprovalDto request, 
-        FeishuCallbackEvent callback, string? errorMessage = null)
+        FeishuCallbackEvent callback, string errorMessage = null)
     {
         // 这里可以将事件记录到数据库、文件或其他持久化存储中
         var logEntry = new
@@ -262,7 +258,7 @@ public class DemoApprovalHandler : ApprovalHandlerBase<DemoApprovalDto>
             Timestamp = DateTime.UtcNow,
             EventType = eventType,
             InstanceCode = callback.Event.ApprovalCode,
-            ApprovalCode = callback.Event.ApprovalCode,
+            callback.Event.ApprovalCode,
             Name = request.姓名,
             Age = request.年龄_岁,
             ErrorMessage = errorMessage
@@ -349,8 +345,8 @@ public class DemoApprovalHandler : ApprovalHandlerBase<DemoApprovalDto>
     {
         // 根据异常类型判断是否可以重试
         return exception is TimeoutException || 
-               exception is System.Net.Http.HttpRequestException ||
-               (exception is InvalidOperationException && exception.Message.Contains("temporary"));
+               exception is HttpRequestException ||
+               exception is InvalidOperationException && exception.Message.Contains("temporary");
     }
 
     #endregion

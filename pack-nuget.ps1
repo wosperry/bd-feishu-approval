@@ -1,52 +1,80 @@
-# NuGet æ‰“åŒ…è„šæœ¬
-# PowerShell script to build and pack all NuGet packages
+# NuGet ´ò°ü + ·¢²¼½Å±¾
+# PowerShell script to build, pack and publish all NuGet packages
+# Usage: .\pack-nuget.ps1 -ApiKey "your-api-key" -Version "1.2.3"
 
-Write-Host "ğŸš€ å¼€å§‹æ„å»ºå’Œæ‰“åŒ… BD.FeishuSDK.Approval ç³»åˆ—åŒ…..." -ForegroundColor Green
+param(
+    [string]$ApiKey,  # ²»ÔÙÇ¿ÖÆ±ØÌî£¨¿ÉÒÔ´Ó»·¾³±äÁ¿¶ÁÈ¡£©
+    [Parameter(Mandatory=$true)]
+    [string]$Version
+)
 
-# æ¸…ç†ä¹‹å‰çš„æ„å»ºè¾“å‡º
-Write-Host "ğŸ§¹ æ¸…ç†ä¹‹å‰çš„æ„å»ºè¾“å‡º..." -ForegroundColor Yellow
+# Èç¹ûÃ»´« ApiKey£¬Ôò³¢ÊÔ´Ó»·¾³±äÁ¿¶ÁÈ¡
+if (-not $ApiKey) {
+    $ApiKey = $env:NUGET_API_KEY
+}
+
+if (-not $ApiKey ) {
+    Write-Host "? ´íÎó: Î´Ìá¹© ApiKey£¬Ò²Î´ÔÚ»·¾³±äÁ¿ NUGET_API_KEY ÖĞÕÒµ½" -ForegroundColor Red 
+}
+
+Write-Host "? ¿ªÊ¼¹¹½¨ºÍ´ò°ü BD.FeishuSDK.Approval ÏµÁĞ°ü..." -ForegroundColor Green
+
+# ÇåÀíÖ®Ç°µÄ¹¹½¨Êä³ö
+Write-Host "? ÇåÀíÖ®Ç°µÄ¹¹½¨Êä³ö..." -ForegroundColor Yellow
 dotnet clean
 
-# æ¢å¤ä¾èµ–åŒ…
-Write-Host "ğŸ“¦ æ¢å¤ NuGet åŒ…ä¾èµ–..." -ForegroundColor Yellow
+# »Ö¸´ÒÀÀµ°ü
+Write-Host "? »Ö¸´ NuGet °üÒÀÀµ..." -ForegroundColor Yellow
 dotnet restore
 
-# æ„å»ºè§£å†³æ–¹æ¡ˆ
-Write-Host "ğŸ”¨ æ„å»ºè§£å†³æ–¹æ¡ˆ..." -ForegroundColor Yellow
+# ¹¹½¨½â¾ö·½°¸
+Write-Host "? ¹¹½¨½â¾ö·½°¸..." -ForegroundColor Yellow
 dotnet build --configuration Release --no-restore
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "âŒ æ„å»ºå¤±è´¥!" -ForegroundColor Red
-    exit 1
+    Write-Host "? ¹¹½¨Ê§°Ü!" -ForegroundColor Red 
 }
 
-# æ‰“åŒ…å„ä¸ªé¡¹ç›®
+# ´ò°ü¸÷¸öÏîÄ¿
 $projects = @(
     "src\BD.FeishuApproval.Shared\BD.FeishuApproval.Shared.csproj",
     "src\BD.FeishuApproval.Abstractions\BD.FeishuApproval.Abstractions.csproj", 
     "src\BD.FeishuApproval\BD.FeishuApproval.csproj"
 )
 
-Write-Host "ğŸ“¦ å¼€å§‹æ‰“åŒ… NuGet åŒ…..." -ForegroundColor Yellow
+Write-Host "? ¿ªÊ¼´ò°ü NuGet °ü (°æ±¾ºÅ: $Version) ..." -ForegroundColor Yellow
 
 foreach ($project in $projects) {
-    Write-Host "æ­£åœ¨æ‰“åŒ…: $project" -ForegroundColor Cyan
-    dotnet pack $project --configuration Release --no-build --output "./packages"
+    Write-Host "ÕıÔÚ´ò°ü: $project" -ForegroundColor Cyan
+    dotnet pack $project --configuration Release --no-build --output "./packages" /p:PackageVersion=$Version
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "âŒ æ‰“åŒ…å¤±è´¥: $project" -ForegroundColor Red
-        exit 1
+        Write-Host "? ´ò°üÊ§°Ü: $project" -ForegroundColor Red
     }
 }
 
-Write-Host "âœ… æ‰€æœ‰åŒ…æ‰“åŒ…å®Œæˆ!" -ForegroundColor Green
-Write-Host "ğŸ“ åŒ…æ–‡ä»¶ä½äº: ./packages ç›®å½•" -ForegroundColor Green
+Write-Host "? ËùÓĞ°ü´ò°üÍê³É!" -ForegroundColor Green
+Write-Host "? °üÎÄ¼şÎ»ÓÚ: ./packages Ä¿Â¼" -ForegroundColor Green
 
-# åˆ—å‡ºç”Ÿæˆçš„åŒ…æ–‡ä»¶
-Write-Host "`nğŸ“‹ ç”Ÿæˆçš„åŒ…æ–‡ä»¶:" -ForegroundColor Yellow
-Get-ChildItem "./packages" -Filter "*.nupkg" | Format-Table Name, Length, LastWriteTime
+# ÁĞ³öÉú³ÉµÄ°üÎÄ¼ş
+Write-Host "`n? Éú³ÉµÄ°üÎÄ¼ş:" -ForegroundColor Yellow
+Get-ChildItem "./packages" | Format-Table Name, Length, LastWriteTime
 
-Write-Host "`nğŸ”§ å‘å¸ƒåˆ° NuGet çš„å‘½ä»¤ç¤ºä¾‹:" -ForegroundColor Cyan
-Write-Host "dotnet nuget push ./packages/*.nupkg --api-key YOUR_API_KEY --source https://api.nuget.org/v3/index.json" -ForegroundColor White
+# ÍÆËÍËùÓĞ°ü£¨°üº¬ .nupkg ºÍ .snupkg£©
+$packages = Get-ChildItem "./packages" | Where-Object { $_.Extension -in ".nupkg", ".snupkg" }
 
-Write-Host "`nğŸ‰ æ‰“åŒ…å®Œæˆ!" -ForegroundColor Green
+Write-Host "`n? ¿ªÊ¼·¢²¼µ½ NuGet..." -ForegroundColor Green
+foreach ($package in $packages) {
+    Write-Host "ÕıÔÚ·¢²¼: $($package.Name)" -ForegroundColor Cyan
+    
+    dotnet nuget push "$($package.FullName)" `
+        --source "https://api.nuget.org/v3/index.json" `
+        --api-key "$ApiKey" `
+        --skip-duplicate
+    
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "? ·¢²¼Ê§°Ü: $($package.Name)" -ForegroundColor Red 
+    }
+}
+
+Write-Host "? ËùÓĞ°ü·¢²¼Íê³É!" -ForegroundColor Green

@@ -21,4 +21,7 @@ Thumbs.db
 /.vscode/
 
 /.claude/*.json
-feishu_approval_dev.db
+*.db
+*.nupkg
+*.snupkg
+

@@ -11,6 +11,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{B59E
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "solution items", "solution items", "{0D5CB4C1-68A7-4646-8922-93ACB54C4EDD}"
 	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		LICENSE = LICENSE
+		pack-nuget.ps1 = pack-nuget.ps1
+		pack-nuget.sh = pack-nuget.sh
 		README.md = README.md
 		test.http = test.http
 	EndProjectSection

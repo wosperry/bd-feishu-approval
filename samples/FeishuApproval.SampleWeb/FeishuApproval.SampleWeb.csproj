@@ -7,13 +7,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="BD.FeishuSDK.Approval" Version="1.0.1-dev3" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\..\src\BD.FeishuApproval\BD.FeishuApproval.csproj" />
-		<ProjectReference Include="..\..\src\BD.FeishuApproval.Abstractions\BD.FeishuApproval.Abstractions.csproj" />
-		<ProjectReference Include="..\..\src\BD.FeishuApproval.Shared\BD.FeishuApproval.Shared.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
