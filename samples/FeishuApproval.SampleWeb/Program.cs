@@ -20,6 +20,8 @@ builder.Services
     .AddFeishuApprovalCoreServices()  // 只注册核心服务，不自动扫描
     .AddFeishuDashboardTemplatesForProduction();
 
+
+
 // 添加控制器和API服务
 builder.Services.AddControllers();
 
@@ -53,7 +55,7 @@ if (app.Environment.IsDevelopment())
 // 映射控制器路由
 app.MapControllers();
 
-// 使用新的V2 Dashboard (基于模板系统)
+// 使用Dashboard 
 FeishuDashboardTemplateExtensions.MapFeishuDashboardV2(app, new FeishuDashboardOptions());
 
 app.Run();

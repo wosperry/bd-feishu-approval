@@ -83,6 +83,20 @@ public class FeishuManagementController : ControllerBase
     }
 
     /// <summary>
+    /// 检查是否已设置管理员密码
+    /// </summary>
+    [HttpGet("admin-password/status")]
+    public async Task<ActionResult<AdminPasswordStatusResult>> GetAdminPasswordStatus()
+    {
+        var status = await _managementService.GetConfigurationStatusAsync();
+        return Ok(new AdminPasswordStatusResult
+        {
+            HasPassword = status.HasAdminPassword,
+            IsInitialized = status.HasAdminPassword
+        });
+    }
+
+    /// <summary>
     /// 保存飞书应用配置
     /// </summary>
     [HttpPost("feishu-config")]
@@ -586,6 +600,22 @@ public class SubscribeRequest
     /// </summary>
     [Required(ErrorMessage = "管理员密码不能为空")]
     public string AdminPassword { get; set; }
+}
+
+/// <summary>
+/// 管理员密码状态结果
+/// </summary>
+public class AdminPasswordStatusResult
+{
+    /// <summary>
+    /// 是否已设置密码
+    /// </summary>
+    public bool HasPassword { get; set; }
+
+    /// <summary>
+    /// 是否已初始化（与HasPassword相同，为了兼容性）
+    /// </summary>
+    public bool IsInitialized { get; set; }
 }
 #endregion
 #endif

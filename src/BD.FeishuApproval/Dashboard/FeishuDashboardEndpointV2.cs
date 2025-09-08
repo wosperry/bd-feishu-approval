@@ -130,6 +130,88 @@ public static class FeishuDashboardEndpointV2
             }
         });
 
+        // 管理员密码状态查询
+        endpoints.MapGet($"{options.ApiPrefix}/admin/password-status", async context =>
+        {
+            try
+            {
+                var repo = context.RequestServices.GetRequiredService<IFeishuApprovalRepository>();
+                // 通过尝试验证一个假密码来检查是否存在密码
+                var hasPassword = !await repo.VerifyAdminPasswordAsync("__temp_check_password__");
+                var result = new { hasPassword = hasPassword, isInitialized = hasPassword };
+                
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(result));
+            }
+            catch (Exception ex)
+            {
+                var logger = context.RequestServices.GetService<ILogger>();
+                logger?.LogError(ex, "Failed to check admin password status");
+                await TrySetResponseAsync(context, 500, "Internal server error");
+            }
+        });
+
+        // 设置管理员密码
+        endpoints.MapPost($"{options.ApiPrefix}/admin/password", async context =>
+        {
+            try
+            {
+                var repo = context.RequestServices.GetRequiredService<IFeishuApprovalRepository>();
+                var request = await JsonSerializer.DeserializeAsync<SetPasswordRequestDto>(context.Request.Body);
+                
+                if (string.IsNullOrWhiteSpace(request?.Password))
+                {
+                    await TrySetResponseAsync(context, 400, "密码不能为空");
+                    return;
+                }
+
+                if (request.Password.Length < 6)
+                {
+                    await TrySetResponseAsync(context, 400, "密码长度至少6位");
+                    return;
+                }
+
+                await repo.SetAdminPasswordAsync(request.Password);
+                
+                var result = new { success = true, message = "密码设置成功" };
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(result));
+            }
+            catch (Exception ex)
+            {
+                var logger = context.RequestServices.GetService<ILogger>();
+                logger?.LogError(ex, "Failed to set admin password");
+                await TrySetResponseAsync(context, 500, "Internal server error");
+            }
+        });
+
+        // 验证管理员密码
+        endpoints.MapPost($"{options.ApiPrefix}/admin/password/verify", async context =>
+        {
+            try
+            {
+                var repo = context.RequestServices.GetRequiredService<IFeishuApprovalRepository>();
+                var request = await JsonSerializer.DeserializeAsync<SetPasswordRequestDto>(context.Request.Body);
+                
+                if (string.IsNullOrWhiteSpace(request?.Password))
+                {
+                    await TrySetResponseAsync(context, 400, "密码不能为空");
+                    return;
+                }
+
+                var isValid = await repo.VerifyAdminPasswordAsync(request.Password);
+                
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(isValid));
+            }
+            catch (Exception ex)
+            {
+                var logger = context.RequestServices.GetService<ILogger>();
+                logger?.LogError(ex, "Failed to verify admin password");
+                await TrySetResponseAsync(context, 500, "Internal server error");
+            }
+        });
+
         // 保存飞书配置
         endpoints.MapPost($"{options.ApiPrefix}/config", async context =>
         {
@@ -854,4 +936,13 @@ namespace YourProject.Models
                input.Any(c => char.IsLower(c) && char.IsUpper(input.FirstOrDefault())));
     }
 }
+
+/// <summary>
+/// 设置密码请求DTO
+/// </summary>
+public class SetPasswordRequestDto
+{
+    public string Password { get; set; }
+}
+
 #endif

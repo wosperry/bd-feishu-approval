@@ -9,7 +9,7 @@
 		<!-- NuGet Package Configuration -->
 		<PackageId>BD.FeishuSDK.Approval.Abstractions</PackageId>
 		<Title>飞书审批工作流 SDK - 抽象接口</Title>
-		<PackageVersion>1.0.0</PackageVersion>
+		<PackageVersion>1.0.0-dev2</PackageVersion>
 		<Authors>BD Team</Authors>
 		<Company>BD</Company>
 		<Description>飞书审批工作流 SDK 的核心抽象接口定义，包含服务接口、数据传输对象、扩展点等。</Description>

@@ -301,24 +301,64 @@
         </div>
         
         <div class='setup-grid'>
-            <!-- 管理口令验证 -->
-            <div class='card'>
+            <!-- 管理口令设置/验证 -->
+            <div class='card' id='passwordCard'>
                 <div class='card-header'>
                     <div class='step-number'>1</div>
                     <div>
-                        <div class='card-title'>管理口令验证</div>
-                        <div class='card-desc'>输入管理口令以进行系统配置</div>
+                        <div class='card-title' id='passwordTitle'>管理口令设置</div>
+                        <div class='card-desc' id='passwordDesc'>首次使用，请设置管理口令以保护系统安全</div>
                     </div>
                 </div>
                 
-                <div class='form-section'>
+                <!-- 初始化密码界面 -->
+                <div class='form-section' id='initPasswordSection'>
+                    <div class='form-row'>
+                        <input id='newPwd' type='password' placeholder='设置管理口令（至少6位）' class='form-input'>
+                        <input id='confirmPwd' type='password' placeholder='确认管理口令' class='form-input'>
+                    </div>
+                    <div class='form-row'>
+                        <button class='btn btn-primary' onclick='initPassword()'>
+                            🔒 设置口令
+                        </button>
+                    </div>
+                    <div class='hint'>请妥善保管您的管理口令，遗失后需要重新部署系统</div>
+                </div>
+
+                <!-- 验证密码界面 -->
+                <div class='form-section' id='verifyPasswordSection' style='display: none;'>
                     <div class='form-row'>
                         <input id='pwd' type='password' placeholder='输入管理口令进行验证' class='form-input'>
                         <button class='btn btn-outline' onclick='verifyPwd()'>
                             🔍 验证口令
                         </button>
                     </div>
+                    <div class='form-row'>
+                        <button class='btn btn-outline' onclick='showChangePassword()' style='margin-top: 0.5rem;'>
+                            🔑 修改口令
+                        </button>
+                    </div>
                     <div class='hint'>管理口令用于保护系统配置安全</div>
+                </div>
+
+                <!-- 修改密码界面 -->
+                <div class='form-section' id='changePasswordSection' style='display: none;'>
+                    <div class='form-row'>
+                        <input id='oldPwd' type='password' placeholder='当前管理口令' class='form-input'>
+                    </div>
+                    <div class='form-row'>
+                        <input id='newPwdChange' type='password' placeholder='新管理口令（至少6位）' class='form-input'>
+                        <input id='confirmPwdChange' type='password' placeholder='确认新管理口令' class='form-input'>
+                    </div>
+                    <div class='form-row'>
+                        <button class='btn btn-primary' onclick='changePassword()'>
+                            🔄 修改口令
+                        </button>
+                        <button class='btn btn-outline' onclick='cancelChangePassword()'>
+                            ❌ 取消
+                        </button>
+                    </div>
+                    <div class='hint'>修改后请妥善保管新的管理口令</div>
                 </div>
             </div>
 
@@ -472,6 +512,39 @@
     
     <script>
         let currentPassword = '';
+        let hasAdminPassword = false;
+        
+        // 页面加载时检查密码状态
+        window.onload = async function() {
+            await checkPasswordStatus();
+        };
+        
+        // 检查管理员密码状态
+        async function checkPasswordStatus() {
+            try {
+                const response = await fetch('{{ApiPrefix}}/admin/password-status');
+                const result = await response.json();
+                hasAdminPassword = result.hasPassword;
+                
+                if (hasAdminPassword) {
+                    // 已设置密码，显示验证界面
+                    document.getElementById('passwordTitle').textContent = '管理口令验证';
+                    document.getElementById('passwordDesc').textContent = '输入管理口令以进行系统配置';
+                    document.getElementById('initPasswordSection').style.display = 'none';
+                    document.getElementById('verifyPasswordSection').style.display = 'block';
+                } else {
+                    // 未设置密码，显示初始化界面
+                    document.getElementById('passwordTitle').textContent = '管理口令设置';
+                    document.getElementById('passwordDesc').textContent = '首次使用，请设置管理口令以保护系统安全';
+                    document.getElementById('initPasswordSection').style.display = 'block';
+                    document.getElementById('verifyPasswordSection').style.display = 'none';
+                }
+                document.getElementById('changePasswordSection').style.display = 'none';
+            } catch (error) {
+                console.error('检查密码状态失败:', error);
+                showToast('检查密码状态失败: ' + error.message, 'error');
+            }
+        }
         
         function showToast(message, type) {
             const toast = document.createElement('div');
@@ -492,6 +565,54 @@
             output.className = 'output-area';
         }
         
+        // 初始化密码
+        async function initPassword() {
+            const newPwd = document.getElementById('newPwd').value;
+            const confirmPwd = document.getElementById('confirmPwd').value;
+            
+            if (!newPwd || !newPwd.trim()) {
+                showToast('请输入新密码', 'error');
+                return;
+            }
+            
+            if (newPwd.length < 6) {
+                showToast('密码长度至少6位', 'error');
+                return;
+            }
+            
+            if (newPwd !== confirmPwd) {
+                showToast('两次输入的密码不一致', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('{{ApiPrefix}}/admin/password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        password: newPwd
+                    })
+                });
+                
+                if (response.ok) {
+                    showToast('管理口令设置成功');
+                    currentPassword = newPwd;
+                    hasAdminPassword = true;
+                    updateOutput('✅ 管理口令已设置并缓存\n\n现在可以进行配置保存和审批登记操作');
+                    await checkPasswordStatus(); // 刷新界面状态
+                } else {
+                    const errorText = await response.text();
+                    showToast('设置失败: ' + errorText, 'error');
+                    updateOutput('❌ 设置失败: ' + errorText);
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+                updateOutput('❌ 网络错误: ' + error.message);
+            }
+        }
+
         function verifyPwd() {
             const pwd = document.getElementById('pwd').value;
             if (!pwd || !pwd.trim()) {
@@ -502,6 +623,96 @@
             currentPassword = pwd;
             showToast('口令已缓存，可用于后续操作');
             updateOutput('✅ 管理口令已验证并缓存\n\n现在可以进行配置保存和审批登记操作', 'success');
+        }
+
+        // 显示修改密码界面
+        function showChangePassword() {
+            document.getElementById('verifyPasswordSection').style.display = 'none';
+            document.getElementById('changePasswordSection').style.display = 'block';
+            document.getElementById('passwordTitle').textContent = '修改管理口令';
+            document.getElementById('passwordDesc').textContent = '请输入当前口令和新口令';
+        }
+
+        // 取消修改密码
+        function cancelChangePassword() {
+            document.getElementById('changePasswordSection').style.display = 'none';
+            document.getElementById('verifyPasswordSection').style.display = 'block';
+            document.getElementById('passwordTitle').textContent = '管理口令验证';
+            document.getElementById('passwordDesc').textContent = '输入管理口令以进行系统配置';
+            // 清空输入框
+            document.getElementById('oldPwd').value = '';
+            document.getElementById('newPwdChange').value = '';
+            document.getElementById('confirmPwdChange').value = '';
+        }
+
+        // 修改密码
+        async function changePassword() {
+            const oldPwd = document.getElementById('oldPwd').value;
+            const newPwd = document.getElementById('newPwdChange').value;
+            const confirmPwd = document.getElementById('confirmPwdChange').value;
+            
+            if (!oldPwd || !oldPwd.trim()) {
+                showToast('请输入当前密码', 'error');
+                return;
+            }
+            
+            if (!newPwd || !newPwd.trim()) {
+                showToast('请输入新密码', 'error');
+                return;
+            }
+            
+            if (newPwd.length < 6) {
+                showToast('新密码长度至少6位', 'error');
+                return;
+            }
+            
+            if (newPwd !== confirmPwd) {
+                showToast('两次输入的新密码不一致', 'error');
+                return;
+            }
+            
+            try {
+                // 先验证旧密码
+                const verifyResponse = await fetch('{{ApiPrefix}}/admin/password/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        password: oldPwd
+                    })
+                });
+                
+                if (!verifyResponse.ok || !(await verifyResponse.json())) {
+                    showToast('当前密码错误', 'error');
+                    return;
+                }
+                
+                // 设置新密码
+                const response = await fetch('{{ApiPrefix}}/admin/password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        password: newPwd
+                    })
+                });
+                
+                if (response.ok) {
+                    showToast('管理口令修改成功');
+                    currentPassword = newPwd;
+                    updateOutput('✅ 管理口令已修改并缓存\n\n现在可以使用新口令进行系统配置');
+                    cancelChangePassword(); // 返回验证界面
+                } else {
+                    const errorText = await response.text();
+                    showToast('修改失败: ' + errorText, 'error');
+                    updateOutput('❌ 修改失败: ' + errorText);
+                }
+            } catch (error) {
+                showToast('网络错误: ' + error.message, 'error');
+                updateOutput('❌ 网络错误: ' + error.message);
+            }
         }
         
         async function saveCfg() {
