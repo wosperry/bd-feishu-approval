@@ -21,14 +21,14 @@ public static class FeishuDashboardTemplateExtensions
     /// <param name="configureOptions">配置选项</param>
     /// <returns>服务集合</returns>
     public static IServiceCollection AddFeishuDashboardTemplates(
-        this IServiceCollection services, 
+        this IServiceCollection services,
         Action<FeishuDashboardTemplateOptions> configureOptions = null)
     {
         // 配置选项
         var options = new FeishuDashboardTemplateOptions();
         configureOptions?.Invoke(options);
         services.AddSingleton(options);
-        
+
         // 注册模板提供者
         if (options.TemplateProviderType == typeof(FileSystemTemplateProvider))
         {
@@ -47,15 +47,15 @@ public static class FeishuDashboardTemplateExtensions
             // 自定义模板提供者
             services.AddSingleton(typeof(IFeishuDashboardTemplateProvider), options.TemplateProviderType);
         }
-        
+
         // 注册核心服务
         services.AddSingleton<ITemplateRenderer, DefaultTemplateRenderer>();
         services.AddSingleton<ITemplateCache, InMemoryTemplateCache>();
         services.AddSingleton<IFeishuDashboardTemplateService, FeishuDashboardTemplateService>();
-        
+
         return services;
     }
-    
+
     /// <summary>
     /// 使用新的飞书Dashboard (基于模板系统)
     /// </summary>
@@ -68,7 +68,7 @@ public static class FeishuDashboardTemplateExtensions
     {
         return FeishuDashboardEndpointV2.MapFeishuDashboardV2(endpoints, options);
     }
-    
+
     /// <summary>
     /// 使用新的飞书Dashboard (带模板配置)
     /// </summary>
@@ -83,7 +83,7 @@ public static class FeishuDashboardTemplateExtensions
     {
         var dashboardOptions = new FeishuDashboardOptions();
         configureDashboard?.Invoke(dashboardOptions);
-        
+
         // 如果还未注册模板服务，则注册它们
         var serviceProvider = endpoints.ServiceProvider;
         if (serviceProvider.GetService<IFeishuDashboardTemplateService>() == null)
@@ -91,7 +91,7 @@ public static class FeishuDashboardTemplateExtensions
             throw new InvalidOperationException(
                 "飞书Dashboard模板服务未注册。请在ConfigureServices中调用 services.AddFeishuDashboardTemplates()");
         }
-        
+
         return FeishuDashboardEndpointV2.MapFeishuDashboardV2(endpoints, dashboardOptions);
     }
 }
@@ -114,14 +114,14 @@ public static class FeishuDashboardTemplateConfigurationExtensions
         return services.AddFeishuDashboardTemplates(options =>
         {
             options.EnableDevelopmentMode();
-            
+
             if (!string.IsNullOrEmpty(templatePath))
             {
                 options.UseFileSystemTemplates(templatePath);
             }
         });
     }
-    
+
     /// <summary>
     /// 使用生产模式配置（启用缓存、使用嵌入资源）
     /// </summary>
@@ -136,7 +136,7 @@ public static class FeishuDashboardTemplateConfigurationExtensions
                    .AddVariable("Environment", "Production");
         });
     }
-    
+
     /// <summary>
     /// 使用文件系统模板（适合自定义场景）
     /// </summary>
@@ -149,7 +149,7 @@ public static class FeishuDashboardTemplateConfigurationExtensions
     {
         if (string.IsNullOrEmpty(templatePath))
             throw new ArgumentException("Template path cannot be null or empty", nameof(templatePath));
-            
+
         return services.AddFeishuDashboardTemplates(options =>
         {
             options.UseFileSystemTemplates(templatePath);

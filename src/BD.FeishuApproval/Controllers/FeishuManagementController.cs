@@ -311,7 +311,7 @@ public class FeishuManagementController : ControllerBase
     /// 飞书开放平台回调接口
     /// 处理URL验证和事件推送
     /// </summary>
-    [HttpPost("health")]
+    [HttpPost("callback")]
     public async Task<IActionResult> FeishuEventCallback()
     {
         try
