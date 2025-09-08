@@ -54,18 +54,7 @@ public class LeaveRequest : FeishuApprovalRequestBase
 ```csharp
 public class LeaveHandler : ApprovalHandlerBase<LeaveRequest>
 {
-    public override async Task HandleApprovalApprovedAsync(ApprovalContext<LeaveRequest> context)
-    {
-        // 审批通过 - 你的业务逻辑
-        var request = context.FormData;
-        await UpdateLeaveStatus(request.Name, "approved");
-    }
-
-    public override async Task HandleApprovalRejectedAsync(ApprovalContext<LeaveRequest> context)
-    {
-        // 审批拒绝 - 你的业务逻辑
-        await UpdateLeaveStatus(context.FormData.Name, "rejected");
-    }
+    // 这里异常，Alt 回车，VS帮你把需要实现的方法列出来。
 }
 ```
 
@@ -94,12 +83,6 @@ public class LeaveHandler : ApprovalHandlerBase<LeaveRequest>
 ```csharp
 // 发起审批 - 一行代码
 await approvalService.CreateAsync(new LeaveRequest { Name = "张三", Days = 3 });
-
-// 批量操作
-await batchService.CreateManyAsync(requests);
-
-// 健康检查
-var health = await healthService.CheckAsync();
 ```
 
 ### 🗄️ 多数据库支持
@@ -120,9 +103,7 @@ services.AddFeishuApprovalWithSQLite(connectionString);
 - 📊 系统概览和统计
 - ⚙️ 飞书应用配置
 - 📋 审批实例管理
-- 🔍 健康状态监控
 - 📝 实时日志查看
-- 🛠️ 代码自动生成
 
 ```csharp
 // 使用默认界面
