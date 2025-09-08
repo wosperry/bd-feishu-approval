@@ -78,10 +78,14 @@ public class LeaveHandler : ApprovalHandlerBase<LeaveRequest>
 
 ```
 你的项目/
-├── Models/
-│   └── LeaveRequest.cs          # 审批请求类
-├── Handlers/  
-│   └── LeaveHandler.cs          # 审批处理器
+├── FeishuApprovals/
+│   └── LeaveRequests          
+│       └── LeaveRequest.cs          # 审批请求类
+│       └── LeaveRequest.cs          # 审批处理器
+│   └── OtherRequests          
+│       └── OtherRequest.cs          # 审批请求类
+│       └── OtherRequest.cs          # 审批处理器
+│
 └── Program.cs                   # 三行代码完成集成
 ```
 
