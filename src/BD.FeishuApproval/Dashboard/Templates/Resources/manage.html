@@ -344,7 +344,7 @@
                 <!-- 修改密码界面 -->
                 <div class='form-section' id='changePasswordSection' style='display: none;'>
                     <div class='form-row'>
-                        <input id='oldPwd' type='password' placeholder='当前管理口令' class='form-input'>
+                        <input id='oldPwd' type='password' placeholder='当前管理口令（如未设置可留空）' class='form-input'>
                     </div>
                     <div class='form-row'>
                         <input id='newPwdChange' type='password' placeholder='新管理口令（至少6位）' class='form-input'>
@@ -352,13 +352,13 @@
                     </div>
                     <div class='form-row'>
                         <button class='btn btn-primary' onclick='changePassword()'>
-                            🔄 修改口令
+                            🔄 设置/修改口令
                         </button>
                         <button class='btn btn-outline' onclick='cancelChangePassword()'>
                             ❌ 取消
                         </button>
                     </div>
-                    <div class='hint'>修改后请妥善保管新的管理口令</div>
+                    <div class='hint'>首次设置时可不填写当前口令，修改后请妥善保管新的管理口令</div>
                 </div>
             </div>
 
@@ -651,11 +651,6 @@
             const newPwd = document.getElementById('newPwdChange').value;
             const confirmPwd = document.getElementById('confirmPwdChange').value;
             
-            if (!oldPwd || !oldPwd.trim()) {
-                showToast('请输入当前密码', 'error');
-                return;
-            }
-            
             if (!newPwd || !newPwd.trim()) {
                 showToast('请输入新密码', 'error');
                 return;
@@ -672,20 +667,44 @@
             }
             
             try {
-                // 先验证旧密码
-                const verifyResponse = await fetch('{{ApiPrefix}}/admin/password/verify', {
-                    method: 'POST',
+                // 先检查是否已设置密码
+                const statusResponse = await fetch('{{ApiPrefix}}/admin/password/status', {
+                    method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        password: oldPwd
-                    })
+                    }
                 });
                 
-                if (!verifyResponse.ok || !(await verifyResponse.json())) {
-                    showToast('当前密码错误', 'error');
+                if (!statusResponse.ok) {
+                    showToast('检查密码状态失败', 'error');
                     return;
+                }
+                
+                const statusData = await statusResponse.json();
+                const hasPassword = statusData.hasPassword;
+                
+                // 如果已设置密码，需要验证旧密码
+                if (hasPassword) {
+                    if (!oldPwd || !oldPwd.trim()) {
+                        showToast('请输入当前密码', 'error');
+                        return;
+                    }
+                    
+                    // 验证旧密码
+                    const verifyResponse = await fetch('{{ApiPrefix}}/admin/password/verify', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            password: oldPwd
+                        })
+                    });
+                    
+                    if (!verifyResponse.ok || !(await verifyResponse.json())) {
+                        showToast('当前密码错误', 'error');
+                        return;
+                    }
                 }
                 
                 // 设置新密码
@@ -700,14 +719,15 @@
                 });
                 
                 if (response.ok) {
-                    showToast('管理口令修改成功');
+                    const successMessage = hasPassword ? '管理口令修改成功' : '管理口令设置成功';
+                    showToast(successMessage);
                     currentPassword = newPwd;
-                    updateOutput('✅ 管理口令已修改并缓存\n\n现在可以使用新口令进行系统配置');
+                    updateOutput(`✅ ${successMessage}并缓存\n\n现在可以使用新口令进行系统配置`);
                     cancelChangePassword(); // 返回验证界面
                 } else {
                     const errorText = await response.text();
-                    showToast('修改失败: ' + errorText, 'error');
-                    updateOutput('❌ 修改失败: ' + errorText);
+                    showToast('操作失败: ' + errorText, 'error');
+                    updateOutput('❌ 操作失败: ' + errorText);
                 }
             } catch (error) {
                 showToast('网络错误: ' + error.message, 'error');

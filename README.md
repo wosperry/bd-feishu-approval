@@ -130,16 +130,10 @@ app.MapFeishuDashboardV2();
 
 // 自定义界面模板
 builder.Services.AddFeishuDashboardTemplatesForDevelopment("./templates");
+
 ```
 
-### 🔍 完整的监控
 
-```csharp 
-
-// 配置状态检查  
-var config = await managementService.GetConfigurationStatusAsync();
-Console.WriteLine($"配置完成度: {config.CompletionPercentage}%");
-```
 
 ## 生产环境配置
 
@@ -170,14 +164,7 @@ options.EnableResponseLogging = true;
 - 完整的请假审批流程
 - 自定义验证和业务逻辑
 - 管理界面集成
-- 数据库配置
-
-## 文档
-
-- [Dashboard V2 使用指南](DASHBOARD_V2_USAGE.md) - 自定义界面模板
-- [Demo 审批使用指南](DEMO_APPROVAL_USAGE.md) - 快速上手示例  
-- [管理 API 使用指南](MANAGEMENT_API.md) - 构建自定义管理功能
-- [改进总结](IMPROVEMENTS_SUMMARY.md) - 版本更新说明
+- 数据库配置 
 
 ## 许可证
 
@@ -185,9 +172,9 @@ MIT License - 详见 [LICENSE](LICENSE)
 
 ## 支持
 
-- 🐛 [提交 Issue](https://github.com/wosperry/bd-feishu-sdk/issues)
-- 💬 [参与讨论](https://github.com/wosperry/bd-feishu-sdk/discussions)  
-- 📚 [查看文档](https://github.com/wosperry/bd-feishu-sdk)
+- 🐛 [提交 Issue](https://github.com/wosperry/bd-feishu-approval/issues)
+- 💬 [参与讨论](https://github.com/wosperry/bd-feishu-approval/discussions)  
+- 📚 [查看文档](https://github.com/wosperry/bd-feishu-approval)
 
 ---
 

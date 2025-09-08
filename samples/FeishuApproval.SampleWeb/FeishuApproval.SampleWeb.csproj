@@ -7,7 +7,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="BD.FeishuSDK.Approval" Version="1.0.1-dev4" />
+		<PackageReference Include="BD.FeishuSDK.Approval" Version="1.0.1-dev5" />
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
 	</ItemGroup>
 

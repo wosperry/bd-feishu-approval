@@ -14,20 +14,17 @@
 		<Company>BD</Company>
 		<Description>企业级飞书审批工作流 SDK，提供完整的审批流程管理、可视化界面、智能代码生成、批量操作、系统监控等功能。支持 MySQL、SQL Server、PostgreSQL、SQLite 多种数据库。</Description>
 		<Summary>企业级飞书审批工作流 SDK - 一行代码集成飞书审批功能</Summary>
-		<PackageTags>feishu;lark;approval;workflow;sdk;csharp;dotnet</PackageTags>
+		<PackageTags>feishu;lark;approval;workflow;sdk;审批;飞书;</PackageTags>
 		<PackageProjectUrl>https://github.com/wosperry/bd-feishu-sdk</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/wosperry/bd-feishu-sdk</RepositoryUrl>
+		<RepositoryUrl>https://github.com/wosperry/bd-feishu-approval</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
-		<PackageReleaseNotes>
-			v1.0.0:
-			✅ 智能代码生成 - 根据审批表单自动生成 C# 实体类
-			✅ 多数据库支持 - MySQL/SQL Server/PostgreSQL/SQLite，自动检测数据库类型
-			✅ 系统健康检查 - 实时监控数据库、飞书API、配置状态
-			✅ 批量操作功能 - 批量创建、查询、撤销审批实例
-			✅ 可视化管理界面 - 美观的 Web 管理控制台
-			✅ 完整的日志监控 - 请求/响应/管理操作全链路日志
+		<PackageReleaseNotes>## 为什么选择我们？
+
+✅ **容易配置** - 三行代码完成集成，无复杂配置  
+✅ **结构清晰** - 请求类 + 处理器，业务逻辑一目了然  
+✅ **界面操作** - 开箱即用的管理界面，无需前端开发  
 		</PackageReleaseNotes>
 		
 		<!-- Build Configuration -->
@@ -44,6 +41,7 @@
 		
 		<!-- Package Content -->
 		<PackageIcon>icon.png</PackageIcon>
+		<AnalysisLevel>6.0-recommended</AnalysisLevel>
 	</PropertyGroup>
 
 	<ItemGroup>
