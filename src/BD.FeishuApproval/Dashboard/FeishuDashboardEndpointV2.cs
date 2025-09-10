@@ -110,6 +110,27 @@ public static class FeishuDashboardEndpointV2
     private static void MapApiEndpoints(IEndpointRouteBuilder endpoints, FeishuDashboardOptions options)
     {
         // 保持所有现有的API端点不变
+        // 提供一个固定接口用于返回Dashboard前缀信息，便于纯静态方式加载页面时获取配置
+        endpoints.MapGet($"{options.ApiPrefix}/dashboard/config", async context =>
+        {
+            try
+            {
+                var data = new
+                {
+                    apiPrefix = options.ApiPrefix,
+                    pathPrefix = options.PathPrefix,
+                    managePath = options.ManagePath
+                };
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync(JsonSerializer.Serialize(data));
+            }
+            catch (Exception ex)
+            {
+                var logger = context.RequestServices.GetService<ILogger>();
+                logger?.LogError(ex, "Failed to get dashboard config");
+                await TrySetResponseAsync(context, 500, "Internal server error");
+            }
+        });
         // 配置状态查询
         endpoints.MapGet($"{options.ApiPrefix}/config/status", async context =>
         {
@@ -131,7 +152,7 @@ public static class FeishuDashboardEndpointV2
         });
 
         // 管理员密码状态查询
-        endpoints.MapGet($"{options.ApiPrefix}/admin/password-status", async context =>
+        endpoints.MapGet($"{options.ApiPrefix}/admin-password/status", async context =>
         {
             try
             {
@@ -152,7 +173,7 @@ public static class FeishuDashboardEndpointV2
         });
 
         // 设置管理员密码
-        endpoints.MapPost($"{options.ApiPrefix}/admin/password", async context =>
+        endpoints.MapPost($"{options.ApiPrefix}/admin-password", async context =>
         {
             try
             {

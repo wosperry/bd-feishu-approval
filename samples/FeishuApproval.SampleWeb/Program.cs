@@ -1,5 +1,6 @@
 using BD.FeishuApproval.Extensions;
 using BD.FeishuApproval.Dashboard;
+using BD.FeishuApproval.Services;
 using FeishuApproval.SampleWeb.FeishuApprovals.DemoApproval;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,12 +13,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddFeishuApproval(connectionString, "sqlite");
 
 // 手动注册Demo审批处理器
-builder.Services.AddApprovalHandler<DemoApprovalHandler_Implement, DemoApprovalDto>();
-
-// 添加新的审批服务架构
-builder.Services
-    .AddFeishuApprovalCoreServices()  // 只注册核心服务，不自动扫描
-    .AddFeishuDashboardTemplatesForProduction();
+builder.Services.AddApprovalHandler<DemoApprovalHandlerImplement, DemoApprovalDto>();
 
 
 
@@ -35,8 +31,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "飞书审批系统API接口文档，提供审批实例的创建、查询等功能"
     });
 });
-
-builder.Services.AddHostedService<FeishuApproval.SampleWeb.StartupMigrationHostedService>();
 
 var app = builder.Build();
 

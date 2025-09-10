@@ -9,15 +9,11 @@ namespace FeishuApproval.SampleWeb.FeishuApprovals.DemoApproval;
 /// Demo审批处理器
 /// 这个例子项目里真正注入的Handler 另一个DemoApprovalHandler根本没有注入
 /// </summary>
-public class DemoApprovalHandler_Implement : ApprovalHandlerBase<DemoApprovalDto>
+public class DemoApprovalHandlerImplement(
+    IFeishuApprovalInstanceService instanceService,
+    ILogger<DemoApprovalHandlerImplement> logger)
+    : ApprovalHandlerBase<DemoApprovalDto>(instanceService, logger)
 {
-    public DemoApprovalHandler_Implement(
-        IFeishuApprovalInstanceService instanceService,
-        ILogger<DemoApprovalHandler_Implement> logger)
-        : base(instanceService, logger)
-    {
-    }
-
     /// <summary>
     /// 审批通过处理
     /// </summary>

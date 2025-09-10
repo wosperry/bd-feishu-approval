@@ -511,6 +511,57 @@
     </div>
     
     <script>
+        // 运行时补丁：支持在未经过后端模板渲染（例如直接用文件协议或IDE静态服务）时，通过查询参数 apiBase 或后端固定配置接口获取 ApiPrefix
+        (function(){
+            const originalFetch = window.fetch.bind(window);
+            const urlParams = new URLSearchParams(location.search);
+            const queryApiBase = urlParams.get('apiBase');
+
+            // 简单的占位符检测
+            const isTemplateUnrendered = function(str){
+                return typeof str === 'string' && str.indexOf('{{ApiPrefix}}') >= 0;
+            };
+
+            // 获取后端配置（当通过 http(s) 访问且未提供 apiBase 时）
+            async function tryResolveApiBaseFromServer() {
+                try {
+                    // 尝试从当前页面推断出 managePath 前缀，回退到 /feishu
+                    const base = location.origin;
+                    // 默认路径：/feishu/api/dashboard/config
+                    const fallback = base + '/feishu/api/dashboard/config';
+                    // 如果当前路径里包含 /feishu/manage，则替换为 /feishu/api/dashboard/config
+                    let guess = '';
+                    if (location.pathname.includes('/manage')) {
+                        guess = base + location.pathname.replace('/manage', '/api/dashboard/config');
+                    }
+                    const probe = guess || fallback;
+                    const resp = await originalFetch(probe);
+                    if (!resp.ok) throw new Error('config http ' + resp.status);
+                    const data = await resp.json();
+                    if (data && data.apiPrefix) return data.apiPrefix;
+                } catch(_) { /* 忽略，走回退 */ }
+                return '/feishu/api';
+            }
+
+            let resolvedApiBase = queryApiBase || null;
+
+            window.fetch = async function(resource, init){
+                try {
+                    if (typeof resource === 'string' && isTemplateUnrendered(resource)) {
+                        if (!resolvedApiBase) {
+                            // 仅当 http(s) 场景才尝试请求服务端配置
+                            if (location.origin && location.origin.startsWith('http')) {
+                                resolvedApiBase = await tryResolveApiBaseFromServer();
+                            }
+                            resolvedApiBase = resolvedApiBase || '/feishu/api';
+                        }
+                        resource = resource.replace('{{ApiPrefix}}', resolvedApiBase);
+                    }
+                } catch(_) { /* 安全保护 */ }
+                return originalFetch(resource, init);
+            };
+        })();
+
         let currentPassword = '';
         let hasAdminPassword = false;
         
@@ -522,7 +573,7 @@
         // 检查管理员密码状态
         async function checkPasswordStatus() {
             try {
-                const response = await fetch('{{ApiPrefix}}/admin/password-status');
+                const response = await fetch('{{ApiPrefix}}/admin-password/status');
                 const result = await response.json();
                 hasAdminPassword = result.hasPassword;
                 
@@ -668,7 +719,7 @@
             
             try {
                 // 先检查是否已设置密码
-                const statusResponse = await fetch('{{ApiPrefix}}/admin/password/status', {
+                const statusResponse = await fetch('{{ApiPrefix}}/admin-password/status', {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json'
@@ -686,7 +737,8 @@
                 // 如果已设置密码，需要验证旧密码
                 if (hasPassword) {
                     if (!oldPwd || !oldPwd.trim()) {
-                        showToast('请输入当前密码', 'error');
+                        // 非必须提示：不再弹出错误，仅聚焦输入框
+                        document.getElementById('oldPwd').focus();
                         return;
                     }
                     

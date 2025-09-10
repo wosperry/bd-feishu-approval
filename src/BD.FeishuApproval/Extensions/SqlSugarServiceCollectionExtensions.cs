@@ -1,4 +1,5 @@
 using System;
+using BD.FeishuApproval.Services;
 using Microsoft.Extensions.DependencyInjection;
 using SqlSugar;
 
@@ -151,6 +152,14 @@ public static class SqlSugarServiceCollectionExtensions
 		});
 
 		services.AddFeishuApproval(baseAddress);
+
+		services.AddFeishuDashboardTemplates();
+		
+		services.AddHostedService<StartupMigrationHostedService>()
+			.AddFeishuApprovalCoreServices()  // 只注册核心服务，不自动扫描
+			.AddFeishuDashboardTemplatesForProduction();
+		
+		
 		return services;
 	}
 

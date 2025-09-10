@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BD.FeishuApproval.XUnit", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FeishuApproval.SampleWeb", "samples\FeishuApproval.SampleWeb\FeishuApproval.SampleWeb.csproj", "{C1F6F8D9-6C07-4D03-9C3D-2C3D6F2D4C1E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FeishuApproval.AnotherSample", "samples\FeishuApproval.AnotherSample\FeishuApproval.AnotherSample.csproj", "{9D740771-3BE1-42E8-AD07-1C7002A6E93F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,10 @@ Global
 		{C1F6F8D9-6C07-4D03-9C3D-2C3D6F2D4C1E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C1F6F8D9-6C07-4D03-9C3D-2C3D6F2D4C1E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C1F6F8D9-6C07-4D03-9C3D-2C3D6F2D4C1E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9D740771-3BE1-42E8-AD07-1C7002A6E93F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D740771-3BE1-42E8-AD07-1C7002A6E93F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D740771-3BE1-42E8-AD07-1C7002A6E93F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D740771-3BE1-42E8-AD07-1C7002A6E93F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -65,6 +71,7 @@ Global
 		{CAAA98EB-C7B8-6CF6-61B0-41F7ABFAF00E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{7A148BBB-48FD-4927-B971-26688954937F} = {E04497F1-4C20-4F45-84E7-05544279AB34}
 		{C1F6F8D9-6C07-4D03-9C3D-2C3D6F2D4C1E} = {B59E9FF4-3549-41BA-9210-B61BA9B2467F}
+		{9D740771-3BE1-42E8-AD07-1C7002A6E93F} = {B59E9FF4-3549-41BA-9210-B61BA9B2467F}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3A58E62E-87B5-4931-9485-93918262E616}

@@ -130,10 +130,16 @@ public class FeishuDashboardTemplateService : IFeishuDashboardTemplateService
     
     private void AddSystemVariables(Dictionary<string, string> variables)
     {
-        variables["ApiPrefix"] = _options.ApiPrefix;
-        variables["PathPrefix"] = _options.PathPrefix;
-        variables["ManagePath"] = _options.ManagePath;
-        variables["Version"] = GetType().Assembly.GetName().Version?.ToString() ?? "Unknown";
+        // 仅在未提供时填充系统变量，避免覆盖调用方显式传入的值
+        if (!variables.ContainsKey("ApiPrefix"))
+            variables["ApiPrefix"] = _options.ApiPrefix;
+        if (!variables.ContainsKey("PathPrefix"))
+            variables["PathPrefix"] = _options.PathPrefix;
+        if (!variables.ContainsKey("ManagePath"))
+            variables["ManagePath"] = _options.ManagePath;
+        if (!variables.ContainsKey("Version"))
+            variables["Version"] = GetType().Assembly.GetName().Version?.ToString() ?? "Unknown";
+        // Timestamp 每次渲染都更新
         variables["Timestamp"] = DateTime.UtcNow.ToString("O");
     }
     
